@@ -24,7 +24,14 @@ def server():
 	username = clientsocket.recv(128)
 	username = username.decode('ascii')
 	print("Received username is", username)
-
 	create_user(username)
+
+	# Receive recipient name
+	recipient = clientsocket.recv(128)
+	recipient = recipient.decode('ascii')
+	print("Received recipient is", recipient)
+	
+	# TODO: check if recipient is active
+
 
 server()
