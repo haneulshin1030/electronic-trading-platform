@@ -19,7 +19,12 @@ def server():
 	serversocket.listen()
 	clientsocket, addr = serversocket.accept()
 	print('Connected to by:', addr)
-	data = clientsocket.recv(128)
-	data = data.decode('ascii')
+
+	# Receive username
+	username = clientsocket.recv(128)
+	username = username.decode('ascii')
+	print("Received username is", username)
+
+	create_user(username)
 
 server()
