@@ -16,7 +16,10 @@ def client_soc():
 	sent = clientsocket.send(recipient.encode('ascii'));
 	print('Message sent, %d/%d bytes transmitted' % (sent, len(recipient)))
 
-	
+	# Prompt message
+	msg = input("Enter your message here: ");
+	sent = clientsocket.send(msg.encode('ascii'));
+	print('Message sent, %d/%d bytes transmitted' % (sent, len(msg)))
 
 	clientsocket.close()
 
