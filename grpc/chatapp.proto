@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+// interface exported by the server
+service ChatApp {
+
+}
+
+message User {
+  string username = 1;
+  string account_id = 2;
+}
+
+message Message {
+  string send_username = 1;
+  string message = 2;
+}
+
+message Users {
+  repeated User users = 1;
+}
