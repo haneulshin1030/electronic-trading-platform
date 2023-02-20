@@ -57,7 +57,28 @@ def threaded(client):
   client.close()
 
 
+def main():
+  HOST = '127.0.0.1' 
+  PORT = 6000
+
+  serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+  serversocket.bind((HOST, PORT))
+
+  serversocket.listen(1)
+  print("Socket is listening")
+
+  # a forever loop until client wants to exit
+  while True:
+    # connect to client 
+    clientsocket, addr = serversocket.accept()
+    print('Connected to by:', addr[0], ':', addr[1])
+
+    # new thread, return identifier
+    start_new_thread(threaded, (clientsocket,))
+  
+  serversocket.close()
 
 
-
+if __name__ == "__main__":
+  main()
   
