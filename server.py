@@ -9,15 +9,18 @@ p_lock = threading.Lock()
 # accounts: {name: id}
 accounts = {}
 
-# key: ID, value: dictionary of {recipientID: messages}
 # messages = {
-#   sendUserID: {receiveUserID1: [message1], receiveUserID2: [message1, message2]}
+#   receiveuser: {senduser: [message1, ...], senduser: [message1]}
 # }
 messages = {}
 
-# methods for different operations of wire protocol
+'''
+METHODS for different operations of wire protocol
+'''
+
+# account creation
 def create_account(username):
-  account_id = str(random.randint(0, 1000))
+  account_id = str(random.randint(1, 1000))
 
   if username in accounts:
     print("Username already exists.")
@@ -25,32 +28,85 @@ def create_account(username):
 
   # generate ID
   accounts[username] = account_id
-  messages[account_id] = {}
+  messages[username] = {}
   
-  data = "account_id: " + str(account_id) + "\n"
-  print(data)
+  return account_id
+
+# login
+def login(username):
+  account_id = accounts[username]
+  return account_id
+
+# send message
+def send_message(username, receive_user, message):
+  if username in messages[receive_user]:
+    messages[receive_user][username].append(message)
+  else:
+    messages[receive_user][username] = [message]
 
 # multithreading
 def threaded(client):
+  account_id = 0
+  username = ""
+
   while True:
+    # always check for any undelivered messages
+    if username != "":
+      print('Entering check')
+      for send_user in messages[username]:
+        messages_list = messages[username][send_user]
+        length = len(messages_list)
+        messages_output = ""
+        for i in range(length):
+          messages_output += "\nFrom " + send_user + ": " + messages_list[i] + "\n"
+        
+        print("messages_output: " + messages_output)
+        client.send(messages_output.encode('ascii'))
+
+        # remove delivered messages
+        messages[username][send_user] = messages[username][send_user][length:]
+
     data_list = []
     # data received from client
     data = client.recv(1024)
     data_str = data.decode('UTF-8')
     if not data:
-        print('Error: nothing received')
+        print('Nothing received')
         break
     print(data_str + "\n")
     
-    # Split data into each component
+    # split data into each component
     data_list = data_str.split('|')
     opcode = data_list[0]
     print("Opcode:" + str(opcode))
     
-    # Wire protocol by opcode
-    if opcode == '1':
-      print("Param:" + data_list[1])
-      create_account(data_list[1])
+    # wire protocol by opcode
+    if opcode == '1': # create account
+      username = data_list[1]
+      print("Param:" + username)
+      account_id = create_account(username)
+      data = "account_id: " + str(account_id) + "\n"
+      # print("create_account account_id: ", str(account_id))
+    elif opcode == '2': # login
+      print("Param:" + username)
+      account_id = login(username)
+      data = "account_id: " + str(account_id) + "\n"
+      # print("login account_id: ", str(account_id))
+      continue
+    elif opcode == '3': # list accounts
+      continue
+    elif opcode == '4': # send message
+      receive_user = data_list[1]
+      message = data_list[2]
+      send_message(username, receive_user, message)
+      data = "message: " + str(message) + "\n"
+    elif opcode == '5': # delete account
+      continue
+    else: # error catching
+      print("Error: invalid opcode")
+
+    # send back reversed string
+    client.send(data.encode('ascii'))
 
   # connection closed
 

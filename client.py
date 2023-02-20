@@ -13,8 +13,8 @@ def main():
     ans = input("\nEnter your request: ")
 
     if ans == "":
-      ans2 = input('\nDo you want to continue(y/n) :')
-      if ans2 =='y':
+      ans2 = input("\nDo you want to continue (y/n):")
+      if ans2 == 'y':
         continue
       else:
         break
@@ -24,7 +24,7 @@ def main():
 
       # print the received message
       # here it would be a reverse of sent message
-      print('Received from the server :', str(data.decode('ascii')))
+      print('Received from the server: ', str(data.decode('ascii')))
       continue
 
   # close the connection
