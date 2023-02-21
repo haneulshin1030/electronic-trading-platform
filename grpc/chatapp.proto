@@ -2,17 +2,33 @@ syntax = "proto3";
 
 // interface exported by the server
 service ChatApp {
+  rpc createAccount(Username) returns (Empty) {}
 
+  rpc listAccounts(SearchCriteria) returns (Users) {}
+
+  rpc sendMessage(Message) returns (Empty) {}
+
+  rpc receiveMessage(Message) returns (stream Message) {}
+
+  rpc deleteAccount(Username) returns (Empty) {}
 }
 
-message User {
+message Username {
   string username = 1;
-  string account_id = 2;
+}
+
+message SearchCriteria {
+  string Criteria = 1;
 }
 
 message Message {
   string send_username = 1;
   string message = 2;
+}
+
+message User {
+  string username = 1;
+  string account_id = 2;
 }
 
 message Users {
