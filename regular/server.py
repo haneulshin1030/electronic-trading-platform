@@ -1,6 +1,8 @@
-import socket
 import mysql.connector
 import random
+import re
+import socket
+
 from _thread import *
 import threading
 from threading import Thread
@@ -45,6 +47,19 @@ def send_message(username, receive_user, message):
   else:
     messages[receive_user][username] = [message]
 
+# list accounts (or a subset of the accounts, by text wildcard)
+def list_accounts(criteria):
+  if criteria == "":
+    return list(accounts.keys())
+  else:
+    matching_names = []
+    regex = re.compile(criteria)
+    for key in accounts.keys():
+      if regex.match(key):
+        matching_names.append(key)
+    return matching_names
+
+
 # multithreading
 def threaded(client):
   account_id = 0
@@ -84,18 +99,20 @@ def threaded(client):
     # wire protocol by opcode
     if opcode == '1': # create account
       username = data_list[1]
-      print("Param:" + username)
+      print("Param: " + username)
       account_id = create_account(username)
       data = "account_id: " + str(account_id) + "\n"
       # print("create_account account_id: ", str(account_id))
     elif opcode == '2': # login
-      print("Param:" + username)
+      print("Param: " + username)
       account_id = login(username)
       data = "account_id: " + str(account_id) + "\n"
       # print("login account_id: ", str(account_id))
-      continue
     elif opcode == '3': # list accounts
-      continue
+      criteria = data_list[1]
+      print("Param: " + criteria)
+      match_accounts = list_accounts(criteria)
+      data = "accounts: " + str(match_accounts) + "\n"
     elif opcode == '4': # send message
       receive_user = data_list[1]
       message = data_list[2]
