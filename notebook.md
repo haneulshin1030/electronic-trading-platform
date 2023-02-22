@@ -69,19 +69,13 @@ Since our method logic for the regular chat app and gRPC chat app are identical,
 - Listing accounts with a regex parameter returns a matching subset of the user list.
 - Logging in a user returns a successful login statement.
 - Sending a message adds and stores the right formatted message in the global `messages` dictionary.
+- Throw an error if a client tries to create a username that already exists.
+- Throw an error if a client tries to log in to an account that doesn't exist.
+- Throw an error if a client tries to send a message to a username that doesn't exist.
 
 Below we've listed some edge case tests we have tested manually but hope to add as unit tests in the future:
 
-- Throw an error if a client tries to create a username that already exists.
-
-- Throw an error if a client tries to log in to an account that doesn't exist.
-
 - If a different user logs in, log out the previous one.
-
-- Throw an error if a client tries to send a message to a username that doesn't exist.
-
 - Throw an error if the client attempts to delete a user who is logged in (who is not themself).
-
 - If a user deletes themself, log them out (in the regular/original version).
-
 - If a client is not logged in, throw an error if they attempt to send a message.
