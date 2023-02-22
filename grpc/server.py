@@ -21,8 +21,9 @@ class Server(pb2_grpc.ChatAppServicer):
     self.logged_in = {}
 
   # when client inputs something into server
-  def SendData(self, request: pb2.Data, context):
+  def SendData(self, request: pb2.Data):
     data_str = str(request.data)
+    print("Data received:", data_str)
 
     if not data_str:
       print('Nothing received')
