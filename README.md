@@ -1,5 +1,6 @@
 # Chat App
-Single-server, multi-client chat app.
+CS 262: Distributed Computing
+Single-server, multi-client chat app in the shell.
 
 ## Wire Protocol
 1. **Account creation.** `1|username` → returns accountID
