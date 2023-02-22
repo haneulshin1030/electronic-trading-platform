@@ -2,6 +2,7 @@ import grpc
 import threading
 from concurrent import futures
 import random
+import re
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
@@ -18,10 +19,6 @@ class Server(pb2_grpc.ChatAppServicer):
 
     # logged_in: {username: boolLoggedIn}
     self.logged_in = {}
-
-    # clients: {username: client}
-    self.clients = {}
-
 
   # when client inputs something into server
   def SendData(self, request: pb2.Data, context):
@@ -48,34 +45,61 @@ class Server(pb2_grpc.ChatAppServicer):
       # generate ID
       self.accounts[username] = str(random.randint(1, 1000))
       self.messages[username] = {}
-      account_id = login(client, username)
+      account_id = self.__login(username)
       data = "account_id: " + str(account_id) + "\n"
-      # print("create_account account_id: ", str(account_id))
+      print("create_account account_id: ", str(account_id))
     elif opcode == '2': # login
       username = data_list[1]
       print("Param: " + username)
-      account_id = login(client, username)
-      send_undelivered_messages(client, username)
+      account_id = self.login(username)
+      self.__send_undelivered_messages(username)
       data = "account_id: " + str(account_id) + "\n"
       # print("login account_id: ", str(account_id))
     elif opcode == '3': # list accounts
       criteria = data_list[1]
       print("Param: " + criteria)
-      match_accounts = list_accounts(criteria)
+      match_accounts = self.__list_accounts(criteria)
       data = "accounts: " + str(match_accounts) + "\n"
     elif opcode == '4': # send message
       receive_user = data_list[1]
       message = data_list[2]
-      data = send_message(username, receive_user, message)
-    elif opcode == '5': # delete account
-      return # TODO
-    elif opcode == '6': # print client
-      username = data_list[1]
-      print(clients[username])
+      data = self.__send_message(username, receive_user, message)
+    # elif opcode == '5': # delete account
+    #   return # TODO
+    # elif opcode == '6': # print client
+    #   username = data_list[1]
+    #   print(clients[username])
     else: # error catching
       print("Error: invalid opcode")
 
-    return pb2.Empty()
+    data_object = pb2.Data()
+    data_object.data = data
+    return data_object
+
+  # log in user
+  def __login(self, username):
+    self.logged_in[username] = True # TODO: lock something?
+    account_id = self.accounts[username]
+    return account_id
+
+  # list accounts (or a subset of the accounts, by text wildcard)
+  def __list_accounts(self, criteria):
+    if criteria == "":
+      return list(self.accounts.keys())
+    else:
+      matching_names = []
+      regex = re.compile(criteria)
+      for key in self.accounts.keys():
+        if regex.match(key):
+          matching_names.append(key)
+      return matching_names
+
+  # send message
+  def __send_message(self, username, receive_user, message):
+    return ""
+
+  def __send_undelivered_messages(self, username):
+    return ""
 
 
 def main():
