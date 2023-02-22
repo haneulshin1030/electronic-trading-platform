@@ -14,9 +14,11 @@ The server then processes user requests by continuously listening for requests, 
 
 #### The Data
 
-Some of the aforementioned commands rely on data from previous interactions between the clients and the server. We store the data corresponding to users on the server side of our chat application. Specifically, we use global records that map each username to a boolean value that kept track of whether they are logged in, a (nested) record that stores any queued messages that need to be delivered to the user, and the client socket and thread corresponding to the user in the present moment.
+Some of the aforementioned commands rely on data from previous interactions between the clients and the server. We store the data corresponding to users on the server side of our chat application. Specifically, we use global records that map each username to a boolean value that kept track of whether they are logged in, a (nested) record that stores any queued messages that need to be delivered to the user, and the client socket and thread corresponding to the user in the present moment. This way, the data persists as long as the server is still running, even when a user logs out or a client shuts down.
 
 Thus, for the commands that rely this data, we access it directly through the global variables and also modify them as needed.
+
+We played around with what we needed to store. Originally, we created unique integer IDs for each account. However, handling both a unique username and a unique integer ID seemed repetitive in nature and made tasks unnecessarily complex, so we stuck to only using usernames as what essentially served as the primary key.
 
 ### The Client
 
@@ -31,6 +33,9 @@ To account for race conditions, we used the `Event` class from `threading` to ar
 ## Part 2: gRPC Implementation
 
 We then implemented a similar chat application using gRPC. 
+
+### Protocol Buffer
+We went through many iterations of how we designed our protocol buffer and the `ChatApp` interface itself in `grpc/chatapp.proto`. Originally, we had created a separate rpc for each step of the wire protocol (e.g. send message, delete account). However, we found that unnecessarily complex and simplified our interface to only require two rpcs: sending a request to server and listening for responses. 
 
 ### The Server
 
@@ -54,11 +59,18 @@ Since it is possible for the client to enter an incorrect command, a KeyError, o
 
 We also designed the chat application to be user friendly in its usage: the user can interact with it in a similar way that they would with a standard terminal. For instance, they can repeatedly press Enter to create new prompts, and if they enter an invalid prompt, they are told so.
 
-We also flush the standard output before outputing server responses so that the command prompt remains clean.
+We also flush the standard output before outputting server responses so that the command prompt remains clean.
 
 ## Edge Cases and Testing
 
-We address the following edge cases, which can be verified through testing:
+Since our method logic for the regular chat app and gRPC chat app are identical, the unit tests are primarily tested on the original chat app in `regular/unit_test.py`. We address the following cases to test the logic of our methods, which cover individual stages of our wire protocol:
+
+- Listing accounts with an empty parameter returns a list of all users.
+- Listing accounts with a regex parameter returns a matching subset of the user list.
+- Logging in a user returns a successful login statement.
+- Sending a message adds and stores the right formatted message in the global `messages` dictionary.
+
+Below we've listed some edge case tests we have tested manually but hope to add as unit tests in the future:
 
 - Throw an error if a client tries to create a username that already exists.
 
@@ -70,6 +82,6 @@ We address the following edge cases, which can be verified through testing:
 
 - Throw an error if the client attempts to delete a user who is logged in (who is not themself).
 
-- If a user deletes themself, log them out (this only makes sense in the original version).
+- If a user deletes themself, log them out (in the regular/original version).
 
 - If a client is not logged in, throw an error if they attempt to send a message.
