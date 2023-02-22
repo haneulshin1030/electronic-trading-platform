@@ -32,9 +32,11 @@ METHODS for different operations of wire protocol
 '''
 
 # send message
-def send_message(username, receive_user, message):
+def send_message(username, receive_user, message, logged_in=logged_in, messages=messages):
+  message_sent = None
+  
   # if receive_user is logged in, attempt to send the message
-  if logged_in[receive_user]:
+  if receive_user in logged_in:
     receive_user_client = clients[receive_user]
     message_sent = receive_user_client.send(message.encode('ascii'))
   
@@ -82,7 +84,7 @@ def send_undelivered_messages(client, username):
   return
 
 # login
-def login(client, username):
+def login(client, username, accounts=accounts):
   logged_in[username] = True # TODO: lock something?
   account_id = accounts[username]
   clients[username] = client
