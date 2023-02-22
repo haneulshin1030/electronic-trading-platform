@@ -16,10 +16,10 @@ class Client:
 
     # create gRPC channel & stub (bind client & server)
     self.channel = grpc.insecure_channel(HOST + ':' + str(PORT))
-    self.stub = rpc.ChatServerStub(self.channel)
+    self.stub = pb2_grpc.ChatServerStub(self.channel)
 
   # sends data to server
-  def send_data(self, event):
+  def send_data(self):
     data_object = pb2.Data()
     data_object.data = self.input
     self.stub.SendData(data_object)
