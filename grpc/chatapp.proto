@@ -1,50 +1,27 @@
 syntax = "proto3";
 
-package grpc;
-
-// interface exported by the server
+// Interface exported by the chat server
 service ChatApp {
-  rpc createAccount(Username) returns (Empty) {}
-
-  rpc listAccounts(SearchCriteria) returns (Users) {}
-
-  rpc sendMessage(Message) returns (Empty) {}
-
-  rpc receiveMessage(Message) returns (stream Message) {}
-
-  rpc deleteAccount(Username) returns (Empty) {}
-
-  rpc sendData(Data) returns (stream Data) {}
-  
-  rpc receiveData(Data) returns (stream Data) {}
+  // Send request to server
+  rpc Send(Request) returns (Response) {}
+  // Listen to server
+  rpc Listen(request) returns (Responses) {}
 }
 
-// generic string type for data input, since each op has different syntax
-message Data {
-  string data = 1;
+// Request message 
+message Request {
+  string opcode = 1;
+  string username = 2;
+  string recipient = 3;
+  string message = 4;
 }
 
-message Username {
-  string username = 1;
+// Response message
+message Response {
+  string text = 1;
 }
 
-message SearchCriteria {
-  string Criteria = 1;
+message Responses {
+  string text = 1;
+  bool empty = 2;
 }
-
-message Message {
-  string message = 1;
-  string sender_name = 2;
-  string receiver_name = 3;
-}
-
-message User {
-  string username = 1;
-  string account_id = 2;
-}
-
-message Users {
-  repeated User users = 1;
-}
-
-message Empty {}
