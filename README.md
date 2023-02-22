@@ -33,7 +33,7 @@ To run the server, execute `python3 server.py`.
 
 To run the client, execute `python3 client.py`.
 
-To run the unit tests, execute `python3 unit_tests.py`.
+To run the unit tests, execute `python3 unit_tests.py`. (Read comments in the file for more detail - if you want to run the server-client test, you also need to have a server running.)
 
 ## gRPC Chat App
 
