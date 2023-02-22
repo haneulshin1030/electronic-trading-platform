@@ -39,9 +39,9 @@ class UnitTests(unittest.TestCase):
     self.assertEqual(list_accounts(".*[4567890].*", test_accounts), [])
 
   def test_login(self):
-    self.assertEqual(login("", "user1", test_accounts), 594)
-    self.assertEqual(login("", "user2", test_accounts), 109)
-    self.assertEqual(login("", "user3", test_accounts), 837)
+    self.assertEqual(login("", "user1", test_accounts), "Account user1 logged in.")
+    self.assertEqual(login("", "user2", test_accounts), "Account user2 logged in.")
+    self.assertEqual(login("", "user3", test_accounts), "Account user3 logged in.")
   
   def test_send_message1(self):
     send_message("user1", "user2", "message1to2a", {}, test_messages)
