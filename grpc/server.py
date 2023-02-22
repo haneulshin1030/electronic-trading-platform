@@ -21,7 +21,7 @@ class Server(pb2_grpc.ChatAppServicer):
     self.logged_in = {}
 
   # when client inputs something into server
-  def SendData(self, request: pb2.Data):
+  def sendData(self, request: pb2.Data):
     data_str = str(request.data)
     print("Data received:", data_str)
 
@@ -104,7 +104,7 @@ class Server(pb2_grpc.ChatAppServicer):
 
 
 def main():
-  HOST = '127.0.0.1'
+  # HOST = '127.0.0.1'
   PORT = 6060
 
   # create gRPC server with max 4 threads at a time
@@ -115,6 +115,7 @@ def main():
   print("Socket is listening")
 
   server.add_insecure_port('[::]:' + str(PORT))
+  # server.add_insecure_port(str(HOST) + ':' + str(PORT))
   server.start()
   server.wait_for_termination()
 

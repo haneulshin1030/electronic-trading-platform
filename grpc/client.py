@@ -7,7 +7,8 @@ import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
 
 
-HOST = '127.0.0.1' 
+# HOST = '127.0.0.1' 
+HOST = 'localhost'
 PORT = 6060
 
 class Client:
@@ -22,7 +23,7 @@ class Client:
   def send_data(self):
     data_object = pb2.Data()
     data_object.data = self.input
-    self.stub.SendData(data_object)
+    self.stub.sendData(data_object)
 
 
 def main():
@@ -38,7 +39,8 @@ def main():
         return
     else:
       # start client
-      Client(ans)
+      client = Client(ans)
+      client.send_data()
 
 
 if __name__ == "__main__":

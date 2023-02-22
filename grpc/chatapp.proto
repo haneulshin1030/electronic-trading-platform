@@ -14,6 +14,8 @@ service ChatApp {
 
   rpc deleteAccount(Username) returns (Empty) {}
 
+  rpc sendData(Data) returns (stream Data) {}
+  
   rpc receiveData(Data) returns (stream Data) {}
 }
 
