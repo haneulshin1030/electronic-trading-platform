@@ -143,7 +143,6 @@ def threaded(client):
       receive_user = data_list[1]
       if receive_user not in accounts:
         data = "Username " + receive_user + " does not exist."
-        continue
       message = data_list[2]
       data = send_message(username, receive_user, message)
     elif opcode == '5': # delete account
