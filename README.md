@@ -8,10 +8,13 @@ Single-server, multi-client chat app in the shell.
 3. **List Accounts.** (or a subset of the accounts, by text wildcard): returns all accounts that match a regex expression, e.g.
     - `list ^.[a]`  (regex handling) returns all usernames that have the letter a at the 2nd digit
     - `list`  (blank case) → returns all accounts
-4. **Send message.** `send <recipient>` initiates a prompt for a message to send to `<recipient>`, and then sends the message and returns a status that indicates whether the message was sent or queued. 
+4. **Send message.** 
+    - For the regular version, `send <recipient>` initiates a prompt for a message to send to `<recipient>`, and then sends the message and returns a status that indicates whether the message was sent or queued. 
     - For the gRPC veresion, the syntax is `send <recipient> <message>`
 5. **Account deletion.** `delete <username>` deletes `<username>`, and if (in the original version) `<username>` is not logged in, or if it is the current user, and a status statement is returned. Any queued messages to be delivered to `<username>` are deleted.
 
+## Engineering Notebook
+More details about the design decisions we made can be found in [notebook.md](notebook.md).
 
 ## Regular Chat App
 
