@@ -3,13 +3,14 @@ CS 262: Distributed Computing
 Single-server, multi-client chat app in the shell.
 
 ## Wire Protocol
-1. **Account creation.** `1|username` → returns accountID
-2. **Login**. `2|username`
-3. **List accounts** (or a subset of the accounts, by text wildcard):
-  - `3|^.[a]` (regex handling) → returns all usernames that have the letter a at the 2nd digit
-  - `3|`  (blank case) → returns all accounts
-4. **Send message**. `4|username of receiver|message` → return Delivered/Queued status
-5. **Account deletion**. `5|username` → deletes account.
+1. **Account creation.** `create <username>` creates a new account under `<username>` if it is unused and returns a success statement.
+2. **Login.**`login <username>`: logs into `<username>` if the account exists and returns a success statement.
+3. **List Accounts.** (or a subset of the accounts, by text wildcard): returns all accounts that match a regex expression, e.g.
+  - `list ^.[a]`  (regex handling) returns all usernames that have the letter a at the 2nd digit
+  - `list`  (blank case) → returns all accounts
+4. **Send message.** `send <recipient>` initiates a prompt for a message to send to `<recipient>`, and then sends the message and returns a status that indicates whether the message was sent or queued. 
+  - For the gRPC veresion, the syntax is `send <recipient> <message>`
+5. **Account deletion.** `delete <username>` deletes `<username>` if (in the original version) `<username>` is not logged in, or if it is the current user, and a status statement is returned. Any queued messages to be delivered to `<username>` are deleted.
 
 
 ## Regular Chat App
