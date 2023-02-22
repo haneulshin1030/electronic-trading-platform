@@ -65,6 +65,7 @@ class ChatApp(pb2_grpc.ChatAppServicer):
     Send request to server.
     """
     opcode = request.opcode
+    username = None
     response = None
 
     # Create account.
@@ -80,8 +81,13 @@ class ChatApp(pb2_grpc.ChatAppServicer):
 
     # Log in.
     elif opcode == "login": 
-      username = request.username
+      new_username = request.username
 
+      # Log out previous user.
+      if username and new_username != username:
+        logged_in[username] = False
+      username = new_username      
+      
       # Check whether user exists.
       if username not in logged_in:
         response = "Username does not exist."
@@ -120,15 +126,13 @@ class ChatApp(pb2_grpc.ChatAppServicer):
     # Delete account
     elif opcode == "delete":
       user_to_delete = request.recipient
-      if logged_in[user_to_delete]:
-          response = "Cannot delete a logged in user."
+      # Unlike in the original version, we do not allow clients to be logged out.
+      if user_to_delete in logged_in:
+        del messages[user_to_delete]
+        del logged_in[user_to_delete]
+        response = "Account " + user_to_delete + " deleted."
       else:
-        if user_to_delete in logged_in:
-          del messages[user_to_delete]
-          del logged_in[user_to_delete]
-          response = "Account " + user_to_delete + " deleted."
-        else:
-          response = "Account " + user_to_delete + " doesn't exist."
+        response = "Account " + user_to_delete + " doesn't exist."
    
     # Exception
     elif opcode == "except":
