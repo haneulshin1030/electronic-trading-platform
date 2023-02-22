@@ -40,6 +40,11 @@ class ChatAppStub(object):
                 request_serializer=chatapp__pb2.Username.SerializeToString,
                 response_deserializer=chatapp__pb2.Empty.FromString,
                 )
+        self.receiveData = channel.unary_stream(
+                '/grpc.ChatApp/receiveData',
+                request_serializer=chatapp__pb2.Data.SerializeToString,
+                response_deserializer=chatapp__pb2.Data.FromString,
+                )
 
 
 class ChatAppServicer(object):
@@ -76,6 +81,12 @@ class ChatAppServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def receiveData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChatAppServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -103,6 +114,11 @@ def add_ChatAppServicer_to_server(servicer, server):
                     servicer.deleteAccount,
                     request_deserializer=chatapp__pb2.Username.FromString,
                     response_serializer=chatapp__pb2.Empty.SerializeToString,
+            ),
+            'receiveData': grpc.unary_stream_rpc_method_handler(
+                    servicer.receiveData,
+                    request_deserializer=chatapp__pb2.Data.FromString,
+                    response_serializer=chatapp__pb2.Data.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -197,5 +213,22 @@ class ChatApp(object):
         return grpc.experimental.unary_unary(request, target, '/grpc.ChatApp/deleteAccount',
             chatapp__pb2.Username.SerializeToString,
             chatapp__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def receiveData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/grpc.ChatApp/receiveData',
+            chatapp__pb2.Data.SerializeToString,
+            chatapp__pb2.Data.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
