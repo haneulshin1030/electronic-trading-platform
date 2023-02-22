@@ -44,7 +44,7 @@ One notable difference in the gRPC version is that all interactions between clie
 
 As mentioned, there were no noticeable differences in complexity or performance between the two versions. We also maintained the same limit on the buffer size between versions. However, it is worth noting that for the gRPC version, since we are not preserving the user's connection across distinct calls, we are then forced to include the sender's username in each request, which adds a restriction on the buffer size. However, this difference seems negligible for our purposes.
 
-## Other Notes
+## Other Design Choices
 
 ### Killing the Client Cleanly
 
@@ -55,3 +55,19 @@ Since it is possible for the client to enter an incorrect command, a KeyError, o
 We also designed the chat application to be user friendly in its usage: the user can interact with it in a similar way that they would with a standard terminal. For instance, they can repeatedly press Enter to create new prompts.
 
 We also flush the standard output before outputing server responses so that the command prompt remains clean.
+
+## Edge Cases and Testing
+
+We address the following edge cases, which can be verified through testing:
+
+- Throw an error if a client tries to create a username that already exists.
+
+- Throw an error if a client tries to log in to an account that doesn't exist.
+
+- Throw an error if a client tries to send a message to a username that doesn't exist.
+
+- Throw an error if the client attempts to delete a user who is logged in (who is not themself).
+
+- If a user deletes themself, log them out.
+
+- If a client is not logged in, throw an error if they attempt to send a message.

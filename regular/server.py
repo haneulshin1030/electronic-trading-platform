@@ -38,7 +38,7 @@ def send_message(username, receive_user, message, logged_in=logged_in, messages=
     print("Message sent")
   
   # If message was not sent, queue it.
-  if not message_sent:
+  if not message_sent: 
     message_to_sender = "Message delivering"
     if username in messages[receive_user]:
       messages[receive_user][username].append(message_to_recipient)
@@ -194,8 +194,13 @@ def process_user_request(client):
 
     # Log in.
     elif opcode == "login": 
-      username = request_list[1]
+      new_username = request_list[1]
 
+      # Log out previous user.
+      if username and new_username != username:
+        logged_in[username] = False
+      
+      username = new_username
       # Check whether user exists.
       if username not in logged_in:
         response = "Username does not exist."
@@ -220,6 +225,12 @@ def process_user_request(client):
     elif opcode == "send":
       receive_user = request_list[1]
 
+      # Check whether the client is logged in.
+      if username is None:
+        response = "You must be logged in to send a message."
+        send_error(client, response)
+        continue
+
       # Check whether recipient exists.
       if receive_user not in logged_in:
         response = "Username " + receive_user + " does not exist."
@@ -243,6 +254,8 @@ def process_user_request(client):
           send_error(client, response)
           print(response)
           continue
+      if user_to_delete == username:
+        username = None
       try:
         response = "Account " + user_to_delete + " deleted."
         del messages[user_to_delete]
@@ -274,7 +287,7 @@ def process_user_request(client):
 
 def main():
   HOST = '127.0.0.1'
-  PORT = 6063
+  PORT = 6065
 
   server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
   server_socket.bind((HOST, PORT))
