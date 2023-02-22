@@ -1,6 +1,7 @@
 import grpc
 import threading
 from concurrent import futures
+import random
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
@@ -21,28 +22,58 @@ class Server(pb2_grpc.ChatAppServicer):
     # clients: {username: client}
     self.clients = {}
 
-  def receive_message(self, request, context):
-    # receive data from incoming request
-    sender_name = request.sender_name
-    receiver_name = request.receiver_name
-    message = request.message
 
-    received = {
-      'message': message,
-      'sender_name': sender_name,
-      'receiver_name': receiver_name
-    }
-    return pb2.Message(**received)
+  # when client inputs something into server
+  def SendData(self, request: pb2.Data, context):
+    data_str = str(request.data)
 
-  def send_message(self, request: pb2.Message, context):
-    sender_name = request.sender_name
-    receiver_name = request.receiver_name
-    message = request.message
+    if not data_str:
+      print('Nothing received')
+    print(data_str + "\n")
+    
+    # split data into each component
+    data_list = data_str.split('|')
 
-    if sender_name in self.messages[receiver_name]:
-      self.messages[receiver_name][sender_name].append(message)
-    else:
-      self.messages[receiver_name][sender_name] = [message]
+    opcode = data_list[0]
+    print("Opcode:" + str(opcode))
+    
+    # wire protocol by opcode
+    if opcode == '1': # create account
+      username = data_list[1]
+      print("Param: " + username)
+      if username in self.accounts:
+        print("Username already exists.")
+        return pb2.Empty()
+
+      # generate ID
+      self.accounts[username] = str(random.randint(1, 1000))
+      self.messages[username] = {}
+      account_id = login(client, username)
+      data = "account_id: " + str(account_id) + "\n"
+      # print("create_account account_id: ", str(account_id))
+    elif opcode == '2': # login
+      username = data_list[1]
+      print("Param: " + username)
+      account_id = login(client, username)
+      send_undelivered_messages(client, username)
+      data = "account_id: " + str(account_id) + "\n"
+      # print("login account_id: ", str(account_id))
+    elif opcode == '3': # list accounts
+      criteria = data_list[1]
+      print("Param: " + criteria)
+      match_accounts = list_accounts(criteria)
+      data = "accounts: " + str(match_accounts) + "\n"
+    elif opcode == '4': # send message
+      receive_user = data_list[1]
+      message = data_list[2]
+      data = send_message(username, receive_user, message)
+    elif opcode == '5': # delete account
+      return # TODO
+    elif opcode == '6': # print client
+      username = data_list[1]
+      print(clients[username])
+    else: # error catching
+      print("Error: invalid opcode")
 
     return pb2.Empty()
 

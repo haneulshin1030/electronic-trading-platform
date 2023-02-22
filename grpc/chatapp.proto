@@ -13,6 +13,13 @@ service ChatApp {
   rpc receiveMessage(Message) returns (stream Message) {}
 
   rpc deleteAccount(Username) returns (Empty) {}
+
+  rpc receiveData(Data) returns (stream Data) {}
+}
+
+// generic string type for data input, since each op has different syntax
+message Data {
+  string data = 1;
 }
 
 message Username {
