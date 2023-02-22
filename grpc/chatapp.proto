@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package grpc;
+
 // interface exported by the server
 service ChatApp {
   rpc createAccount(Username) returns (Empty) {}
@@ -22,8 +24,9 @@ message SearchCriteria {
 }
 
 message Message {
-  string send_username = 1;
-  string message = 2;
+  string message = 1;
+  string sender_name = 2;
+  string receiver_name = 3;
 }
 
 message User {
@@ -34,3 +37,5 @@ message User {
 message Users {
   repeated User users = 1;
 }
+
+message Empty {}
