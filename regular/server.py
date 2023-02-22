@@ -51,7 +51,7 @@ def send_message(username, receive_user, message):
   return success_statement
 
 # list accounts (or a subset of the accounts, by text wildcard)
-def list_accounts(criteria):
+def list_accounts(criteria, accounts=accounts):
   if criteria == "":
     return list(accounts.keys())
   else:
