@@ -13,27 +13,19 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\x12\x04grpc\"\x14\n\x04\x44\x61ta\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\t\"\x1c\n\x08Username\x12\x10\n\x08username\x18\x01 \x01(\t\"\"\n\x0eSearchCriteria\x12\x10\n\x08\x43riteria\x18\x01 \x01(\t\"F\n\x07Message\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x13\n\x0bsender_name\x18\x02 \x01(\t\x12\x15\n\rreceiver_name\x18\x03 \x01(\t\",\n\x04User\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x12\n\naccount_id\x18\x02 \x01(\t\"\"\n\x05Users\x12\x19\n\x05users\x18\x01 \x03(\x0b\x32\n.grpc.User\"\x07\n\x05\x45mpty2\xd2\x02\n\x07\x43hatApp\x12.\n\rcreateAccount\x12\x0e.grpc.Username\x1a\x0b.grpc.Empty\"\x00\x12\x33\n\x0clistAccounts\x12\x14.grpc.SearchCriteria\x1a\x0b.grpc.Users\"\x00\x12+\n\x0bsendMessage\x12\r.grpc.Message\x1a\x0b.grpc.Empty\"\x00\x12\x32\n\x0ereceiveMessage\x12\r.grpc.Message\x1a\r.grpc.Message\"\x00\x30\x01\x12.\n\rdeleteAccount\x12\x0e.grpc.Username\x1a\x0b.grpc.Empty\"\x00\x12&\n\x08sendData\x12\n.grpc.Data\x1a\n.grpc.Data\"\x00\x30\x01\x12)\n\x0breceiveData\x12\n.grpc.Data\x1a\n.grpc.Data\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\"^\n\x07Request\x12\x0e\n\x06opcode\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\trecipient\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\r\n\x05regex\x18\x05 \x01(\t\"\x1c\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\t\"+\n\tResponses\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\r\n\x05\x65mpty\x18\x02 \x01(\x08\x32J\n\x07\x43hatApp\x12\x1d\n\x04Send\x12\x08.Request\x1a\t.Response\"\x00\x12 \n\x06Listen\x12\x08.Request\x1a\n.Responses\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'chatapp_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _DATA._serialized_start=23
-  _DATA._serialized_end=43
-  _USERNAME._serialized_start=45
-  _USERNAME._serialized_end=73
-  _SEARCHCRITERIA._serialized_start=75
-  _SEARCHCRITERIA._serialized_end=109
-  _MESSAGE._serialized_start=111
-  _MESSAGE._serialized_end=181
-  _USER._serialized_start=183
-  _USER._serialized_end=227
-  _USERS._serialized_start=229
-  _USERS._serialized_end=263
-  _EMPTY._serialized_start=265
-  _EMPTY._serialized_end=272
-  _CHATAPP._serialized_start=275
-  _CHATAPP._serialized_end=613
+  _REQUEST._serialized_start=17
+  _REQUEST._serialized_end=111
+  _RESPONSE._serialized_start=113
+  _RESPONSE._serialized_end=141
+  _RESPONSES._serialized_start=143
+  _RESPONSES._serialized_end=186
+  _CHATAPP._serialized_start=188
+  _CHATAPP._serialized_end=262
 # @@protoc_insertion_point(module_scope)

@@ -5,7 +5,7 @@ service ChatApp {
   // Send request to server
   rpc Send(Request) returns (Response) {}
   // Listen to server
-  rpc Listen(request) returns (Responses) {}
+  rpc Listen(Request) returns (Responses) {}
 }
 
 // Request message 
@@ -14,14 +14,15 @@ message Request {
   string username = 2;
   string recipient = 3;
   string message = 4;
+  string regex = 5;
 }
 
 // Response message
 message Response {
-  string text = 1;
+  string response = 1;
 }
 
 message Responses {
-  string text = 1;
+  string message = 1;
   bool empty = 2;
 }

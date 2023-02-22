@@ -1,123 +1,168 @@
 import grpc
-import threading
-from concurrent import futures
-import random
 import re
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
+from concurrent import futures
 
-class Server(pb2_grpc.ChatAppServicer):
+# Record mapping username -> boolLoggedIn, where boolLoggedIn is True if and only if username is logged in
+logged_in = {}
+
+# Record mapping receive_username -> [message_1, ..., message_n], where message_i is a string of the form "From {user}: {message}"
+messages = {}
+
+
+def list_accounts(criteria, logged_in=logged_in):
+  """
+  List accounts (or a subset of the accounts, by text wildcard).
+  """
+  if criteria == "":
+    return list(logged_in.keys())
+  else:
+    matching_names = []
+    regex = re.compile(criteria)
+    for key in logged_in.keys():
+      if regex.match(key):
+        matching_names.append(key)
+    return matching_names
+
+
+def login(username, logged_in=logged_in):
+  """
+  Log the user in.
+  """
+  logged_in[username] = True
+  return "Account " + username + " logged in."
+
+
+def create_account(username):
+  """
+  Create new account.
+  """
+  messages[username] = {}
+  return login(username)
+
+
+class ChatApp(pb2_grpc.ChatAppServicer):
   def __init__(self):
-    # accounts: {name: id}
-    self.accounts = {}
+    pass
 
-    # messages = {
-    #   receiveuser: {senduser: [message1, ...], senduser: [message1]}
-    # }
-    self.messages = {}
+  def Listen(self, request, context):
+    """
+    Listen for pending messages.
+    """
+    message_list = []
+    if request.username in messages:
+      message_list = messages[request.username]
+      messages[request.username] = []
+    return pb2.Responses(message = "\n".join(message_list), empty = len(message_list) == 0)
 
-    # logged_in: {username: boolLoggedIn}
-    self.logged_in = {}
+  def Send(self, request, context):
+    """
+    Send request to server.
+    """
+    opcode = request.opcode
+    response = None
 
-  # when client inputs something into server
-  def sendData(self, request: pb2.Data):
-    data_str = str(request.data)
-    print("Data received:", data_str)
+    # Create account.
+    if opcode == "create": 
+      username = request.username
 
-    if not data_str:
-      print('Nothing received')
-    print(data_str + "\n")
+      # Check whether username is unique.
+      if username in logged_in:
+        response = "Username already exists."
+      else:    
+        # Create new user.
+        response = create_account(username)
+
+    # Log in.
+    elif opcode == "login": 
+      username = request.username
+
+      # Check whether user exists.
+      if username not in logged_in:
+        response = "Username does not exist."
+      else:
+        response = login(username)
+
+    # Response to starting prompt.
+    elif opcode == "start": 
+      username = request.username
+
+      # Check whether user exists.
+      if username not in logged_in:
+        response = create_account(username)
+      else:
+        response = login(username)
+
+    # List accounts.
+    elif opcode == "list": 
+      criteria = request.regex
+      match_accounts = list_accounts(criteria)
+      response = "Accounts: " + str(match_accounts)
     
-    # split data into each component
-    data_list = data_str.split('|')
+    # Send message to a user.
+    elif opcode == "send":
+      username = request.username
+      receive_user = request.recipient
 
-    opcode = data_list[0]
-    print("Opcode:" + str(opcode))
-    
-    # wire protocol by opcode
-    if opcode == '1': # create account
-      username = data_list[1]
-      print("Param: " + username)
-      if username in self.accounts:
-        print("Username already exists.")
-        return pb2.Empty()
+      # Check whether recipient exists.
+      if receive_user not in logged_in:
+        response = "Username " + receive_user + " does not exist."
+      # Send message.
+      else:
+        messages[receive_user].append("From " + username + ": " + request.message)
+        response = "Message sent to " + receive_user
 
-      # generate ID
-      self.accounts[username] = str(random.randint(1, 1000))
-      self.messages[username] = {}
-      account_id = self.__login(username)
-      data = "account_id: " + str(account_id) + "\n"
-      print("create_account account_id: ", str(account_id))
-    elif opcode == '2': # login
-      username = data_list[1]
-      print("Param: " + username)
-      account_id = self.login(username)
-      self.__send_undelivered_messages(username)
-      data = "account_id: " + str(account_id) + "\n"
-      # print("login account_id: ", str(account_id))
-    elif opcode == '3': # list accounts
-      criteria = data_list[1]
-      print("Param: " + criteria)
-      match_accounts = self.__list_accounts(criteria)
-      data = "accounts: " + str(match_accounts) + "\n"
-    elif opcode == '4': # send message
-      receive_user = data_list[1]
-      message = data_list[2]
-      data = self.__send_message(username, receive_user, message)
-    # elif opcode == '5': # delete account
-    #   return # TODO
-    # elif opcode == '6': # print client
-    #   username = data_list[1]
-    #   print(clients[username])
-    else: # error catching
-      print("Error: invalid opcode")
+    # Delete account
+    elif opcode == "delete":
+      user_to_delete = request.recipient
+      if logged_in[user_to_delete]:
+          response = "Cannot delete a logged in user."
+      else:
+        if user_to_delete in logged_in:
+          del messages[user_to_delete]
+          del logged_in[user_to_delete]
+          response = "Account " + user_to_delete + " deleted."
+        else:
+          response = "Account " + user_to_delete + " doesn't exist."
+   
+    # Exception
+    elif opcode == "except":
+      del messages[request.username]
+      del logged_in[request.username]
+      return pb2.Response(response = "")
 
-    data_object = pb2.Data()
-    data_object.data = data
-    return data_object
-
-  # log in user
-  def __login(self, username):
-    self.logged_in[username] = True # TODO: lock something?
-    account_id = self.accounts[username]
-    return account_id
-
-  # list accounts (or a subset of the accounts, by text wildcard)
-  def __list_accounts(self, criteria):
-    if criteria == "":
-      return list(self.accounts.keys())
+    # Error checking for invalid opcode
     else:
-      matching_names = []
-      regex = re.compile(criteria)
-      for key in self.accounts.keys():
-        if regex.match(key):
-          matching_names.append(key)
-      return matching_names
+      if opcode != "":
+        response = "Invalid command."
+      else:
+        response = ""
 
-  # send message
-  def __send_message(self, username, receive_user, message):
-    return ""
-
-  def __send_undelivered_messages(self, username):
-    return ""
+    if response:
+      print(response)
+      return pb2.Response(response = response) 
 
 
 def main():
-  # HOST = '127.0.0.1'
-  PORT = 6060
+  HOST = '127.0.0.1'
+  PORT = 6061
+  """
+  Create the server.
+  """
 
-  # create gRPC server with max 4 threads at a time
-  server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-
-  # add server to gRPC
-  pb2_grpc.add_ChatAppServicer_to_server(Server(), server)
-  print("Socket is listening")
-
-  server.add_insecure_port('[::]:' + str(PORT))
-  # server.add_insecure_port(str(HOST) + ':' + str(PORT))
-  server.start()
-  server.wait_for_termination()
+  try:
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      pb2_grpc.add_ChatAppServicer_to_server(ChatApp(), server)
+      server.add_insecure_port(HOST + ":" + str(PORT))
+      server.start()
+      print(f"Socket is listening on {HOST}:{PORT}")
+      server.wait_for_termination()
+  except KeyboardInterrupt:
+      server.stop(0)
+  return
 
 if __name__ == "__main__":
   main()
+  
