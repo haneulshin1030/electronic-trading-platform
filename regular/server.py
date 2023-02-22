@@ -32,28 +32,29 @@ METHODS for different operations of wire protocol
 '''
 
 # send message
-def send_message(username, receive_user, message, logged_in=logged_in, messages=messages):
-  message_sent = None
-  
-  # if receive_user is logged in, attempt to send the message
-  if receive_user in logged_in:
-    receive_user_client = clients[receive_user]
-    message_sent = receive_user_client.send(message.encode('ascii'))
-  
-  success_statement = None
+def send_message(username, receive_user, message):
+  message_to_recipient = "\nFrom " + username + ": " + message
+  message_to_sender = "Message sent"
+  message_sent = False
 
-  if message_sent:
-    success_statement = "Message sent from " + username + " to " + receive_user + ": " + message
-  else:
-    if username in messages[receive_user]:
-      messages[receive_user][username].append(message)
-    else:
-      messages[receive_user][username] = [message]
+  # if receive_user is logged in, attempt to send the message
+  print(receive_user, logged_in[receive_user])
+  if logged_in[receive_user]:
+    receive_user_client = clients[receive_user]
+    message_sent = receive_user_client.send(message_to_recipient.encode('ascii'))
+    print("Message sent")
   
-  return success_statement
+  if not message_sent:
+    message_to_sender = "Message delivering"
+    if username in messages[receive_user]:
+      messages[receive_user][username].append(message_to_recipient)
+    else:
+      messages[receive_user][username] = [message_to_recipient]
+  
+  return message_to_sender
 
 # list accounts (or a subset of the accounts, by text wildcard)
-def list_accounts(criteria, accounts=accounts):
+def list_accounts(criteria):
   if criteria == "":
     return list(accounts.keys())
   else:
@@ -66,25 +67,26 @@ def list_accounts(criteria, accounts=accounts):
 
 # send undelivered messages
 def send_undelivered_messages(client, username):
-  messages_output = ""
+  messages_to_recipient = ""
   for send_user in messages[username]:
     messages_list = messages[username][send_user]
     length = len(messages_list)
     for i in range(length):
-      messages_output += "\nFrom " + send_user + ": " + messages_list[i] + "\n"
+      messages_to_recipient += messages_list[i]
     
-    messages_output += "\n"
+    messages_to_recipient += "\n"
 
     # remove delivered messages
     # TODO: can probably replace with deletion?
     messages[username][send_user] = messages[username][send_user][length:]
 
-  print("messages_output: " + messages_output)
-  client.send(messages_output.encode('ascii'))
+  if messages_to_recipient != "":
+    client.send(messages_to_recipient.encode('ascii'))
+    print("Messages sent")
   return
 
 # login
-def login(client, username, accounts=accounts):
+def login(client, username):
   logged_in[username] = True # TODO: lock something?
   account_id = accounts[username]
   clients[username] = client
@@ -117,35 +119,43 @@ def threaded(client):
       print("Param: " + username)
       if username in accounts:
         print("Username already exists.")
-        return
-
+        continue
       # generate ID
       accounts[username] = str(random.randint(1, 1000))
       messages[username] = {}
       account_id = login(client, username)
-      data = "account_id: " + str(account_id) + "\n"
-      # print("create_account account_id: ", str(account_id))
+      data = "Account " + username + " logged in."
     elif opcode == '2': # login
       username = data_list[1]
+      if username not in accounts:
+        data = "Username does not exist."
+        continue
       print("Param: " + username)
       account_id = login(client, username)
       send_undelivered_messages(client, username)
-      data = "account_id: " + str(account_id) + "\n"
-      # print("login account_id: ", str(account_id))
+      data = username + " logged in." 
     elif opcode == '3': # list accounts
       criteria = data_list[1]
       print("Param: " + criteria)
       match_accounts = list_accounts(criteria)
-      data = "accounts: " + str(match_accounts) + "\n"
+      data = "Accounts: " + str(match_accounts)
     elif opcode == '4': # send message
       receive_user = data_list[1]
+      if receive_user not in accounts:
+        data = "Username " + receive_user + " does not exist."
+        continue
       message = data_list[2]
       data = send_message(username, receive_user, message)
     elif opcode == '5': # delete account
-      return # TODO
-    elif opcode == '6': # print client
       username = data_list[1]
-      print(clients[username])
+      try:
+        data = "Account " + username + " deleted."
+        del accounts[username]
+        del messages[username]
+        del logged_in[username]
+        del clients[username]
+      except KeyError:
+        data = "Account " + username + " doesn't exist."
     else: # error catching
       print("Error: invalid opcode")
 
@@ -153,6 +163,8 @@ def threaded(client):
     if data:
       client.send(data.encode('ascii'))
 
+  if username:
+    logged_in[username] = False
   # connection closed
 
   client.close()
@@ -160,7 +172,7 @@ def threaded(client):
 
 def main():
   HOST = '127.0.0.1'
-  PORT = 6025
+  PORT = 6043
 
   serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
   serversocket.bind((HOST, PORT))
