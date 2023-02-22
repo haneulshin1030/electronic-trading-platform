@@ -11,15 +11,15 @@ test_accounts = {
 
 test_messages = {
   "user1": {
-    "user2": ["message2to1a", "message2to1b", "message2to1c"],
-    "user3": ["message3to1a", "message3to1b"]
+    "user2": ["\nFrom user2: message2to1a", "\nFrom user2: message2to1b", "\nFrom user2: message2to1c"],
+    "user3": ["\nFrom user3: message3to1a", "\nFrom user3: message3to1b"]
   },
   "user2": {
     "user1": [],
     "user3": []
   },
   "user3": {
-    "user1": ["message1to3a"],
+    "user1": ["\nFrom user1: message1to3a"],
     "user2": []
   }
 }
@@ -45,11 +45,11 @@ class UnitTests(unittest.TestCase):
   
   def test_send_message1(self):
     send_message("user1", "user2", "message1to2a", {}, test_messages)
-    self.assertEqual(test_messages["user2"]["user1"], ["message1to2a"])
+    self.assertEqual(test_messages["user2"]["user1"], ["\nFrom user1: message1to2a"])
     
   def test_send_message2(self):
     send_message("user1", "user3", "message1to3b", {}, test_messages)
-    self.assertEqual(test_messages["user3"]["user1"], ["message1to3a", "message1to3b"])
+    self.assertEqual(test_messages["user3"]["user1"], ["\nFrom user1: message1to3a", "\nFrom user1: message1to3b"])
 
 if __name__ == '__main__':
   print("Unit tests running!")
