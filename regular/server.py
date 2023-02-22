@@ -1,49 +1,43 @@
-import mysql.connector
-import random
+import sys
 import re
 import socket
-import time
-
 from _thread import *
 import threading
-from threading import Thread
 
+# Maximum message size
+MAX_MESSAGE_SIZE = 280
 
-# TODO: limit messages to 280 characters
+# Event to indicate that threads are running
+thread_running_event = threading.Event()
 
-p_lock = threading.Lock()
-
-# accounts: {name: id}
-accounts = {}
-
-# messages = {
-#   receiveuser: {senduser: [message1, ...], senduser: [message1]}
-# }
-messages = {}
-
-# logged_in: {username: boolLoggedIn}
+# Record mapping username -> boolLoggedIn, where boolLoggedIn is True if and only if username is logged in
 logged_in = {}
 
-# clients: {username: client}
-clients = {}
+# Record mapping receive_username -> {sender_username_1: [message_1, ...], sender_username_n: [message_1, ...]} }
+messages = {}
 
-'''
-METHODS for different operations of wire protocol
-'''
+# Record mapping username -> client socket
+client_sockets = {}
 
-# send message
+# Record mapping username -> thread
+client_threads = {}
+
 def send_message(username, receive_user, message, logged_in=logged_in, messages=messages):
+  """
+  Send message from user to recipient.
+  """
   message_to_recipient = "\nFrom " + username + ": " + message
-  message_to_sender = "Message sent"
+  message_to_sender = "Message sent to " + receive_user
   message_sent = False
 
-  # if receive_user is logged in, attempt to send the message
+  # If receive_user is logged in, attempt to send the message.
   if receive_user in logged_in and logged_in[receive_user]:
     print(receive_user, logged_in[receive_user])
-    receive_user_client = clients[receive_user]
+    receive_user_client = client_sockets[receive_user]
     message_sent = receive_user_client.send(message_to_recipient.encode('ascii'))
     print("Message sent")
   
+  # If message was not sent, queue it.
   if not message_sent:
     message_to_sender = "Message delivering"
     if username in messages[receive_user]:
@@ -53,20 +47,25 @@ def send_message(username, receive_user, message, logged_in=logged_in, messages=
   
   return message_to_sender
 
-# list accounts (or a subset of the accounts, by text wildcard)
-def list_accounts(criteria, accounts=accounts):
+def list_accounts(criteria, logged_in=logged_in):
+  """
+  List accounts (or a subset of the accounts, by text wildcard).
+  """
   if criteria == "":
-    return list(accounts.keys())
+    return list(logged_in.keys())
   else:
     matching_names = []
     regex = re.compile(criteria)
-    for key in accounts.keys():
+    for key in logged_in.keys():
       if regex.match(key):
         matching_names.append(key)
     return matching_names
 
-# send undelivered messages
+
 def send_undelivered_messages(client, username):
+  """
+  Send undelivered messages to user.
+  """
   messages_to_recipient = ""
   for send_user in messages[username]:
     messages_list = messages[username][send_user]
@@ -76,8 +75,7 @@ def send_undelivered_messages(client, username):
     
     messages_to_recipient += "\n"
 
-    # remove delivered messages
-    # TODO: can probably replace with deletion?
+    # Remove delivered messages
     messages[username][send_user] = messages[username][send_user][length:]
 
   if messages_to_recipient != "":
@@ -85,110 +83,217 @@ def send_undelivered_messages(client, username):
     print("Messages sent")
   return
 
-# login
-def login(client, username, accounts=accounts):
-  logged_in[username] = True # TODO: lock something?
-  account_id = accounts[username]
-  clients[username] = client
-  return account_id
+def login(client, username, current_thread, logged_in=logged_in):
+  """
+  Log the user in.
+  """
+  logged_in[username] = True
+  client_sockets[username] = client
+  client_threads[username] = current_thread
+  return "Account " + username + " logged in."
+
+
+def create_account(client, username, current_thread):
+  """
+  Create new account.
+  """
+  messages[username] = {}
+  return login(client, username, current_thread)
   
-# multithreading: get data and process request
-def threaded(client):
-  account_id = 0
+
+def kill_server(server_socket):
+    """
+    Close thread and socket for the server.
+    """
+    thread_running_event.clear()
+    try:
+      for username in logged_in:
+        client_sockets[username].shutdown(socket.SHUT_RDWR)
+        client_threads[username].join()
+    # If socket is already closed.
+    except OSError:
+      pass
+    server_socket.close()
+    print("Closed threads.")
+    sys.exit(0)
+
+def kill_client(username):
+  """
+  Close thread and socket for the client (if an error such as a keyboard interrupt occurs).
+  """
+  if not username:
+      return
+  # Close client and thread for username.
+  client_socket = client_sockets[username]
+  try:
+      if client_socket:
+          client_socket.shutdown(socket.SHUT_RDWR)
+  # If client socket is already closed.
+  except OSError:
+      pass
+  logged_in[username] = False
+  client_socket.close()
+  print("Closed thread and socket for " + username)
+  sys.exit(0)
+
+def parse_client_request(client, username):
+  """
+  Parse client request and return it as a string.
+  """
+  # Parse from client
+  request = client.recv(1024) 
+    
+  # If an error such as a keyboard interrupt occurs, kill the client.
+  if not request:
+    kill_client(username)
+    return
+
+  request_str = request.decode('UTF-8') 
+  return request_str
+
+def send_error(client, error):
+  """
+  Send error message to client.
+  """
+  error_message = "Error: " + error
+  client.send(error_message.encode('ascii'))
+  return
+
+def process_user_request(client):
+  """
+  Process user request.
+  """
   username = None
+  response = None
 
-  while True:
-    data_list = []
-    # data received from client
-    data = client.recv(1024)
-    data_str = data.decode('UTF-8')
-    if not data:
-      print('Nothing received')
-      break
-    print(data_str + "\n")
+  while thread_running_event.is_set():
+    # Parse client request
+    request_str = parse_client_request(client, username)
+    print("Received request: " + request_str + "\n")
     
-    # split data into each component
-    data_list = data_str.split('|')
+    # Split data from client into components
+    request_list = request_str.split(" ") 
 
-    opcode = data_list[0]
-    print("Opcode:" + str(opcode))
+    opcode = request_list[0]
+    print("Opcode: " + str(opcode))
     
-    # wire protocol by opcode
-    if opcode == '1': # create account
-      username = data_list[1]
-      print("Param: " + username)
-      if username in accounts:
-        print("Username already exists.")
+    # Create account.
+    if opcode == "create": 
+      username = request_list[1]
+
+      # Check whether username is unique.
+      if username in logged_in:
+        response = "Username already exists."
+        send_error(client, response)
+        print(response)
         continue
-      # generate ID
-      accounts[username] = str(random.randint(1, 1000))
-      messages[username] = {}
-      account_id = login(client, username)
-      data = "Account " + username + " logged in."
-    elif opcode == '2': # login
-      username = data_list[1]
-      if username not in accounts:
-        data = "Username does not exist."
+      
+      # Create new user.
+      response = create_account(client, username, threading.current_thread())
+      print(response)
+
+    # Log in.
+    elif opcode == "login": 
+      username = request_list[1]
+
+      # Check whether user exists.
+      if username not in logged_in:
+        response = "Username does not exist."
+        send_error(client, response)
+        print(response)
         continue
-      print("Param: " + username)
-      account_id = login(client, username)
+      response = login(client, username, threading.current_thread())
+
+      # Send any queued messages.
       send_undelivered_messages(client, username)
-      data = username + " logged in." 
-    elif opcode == '3': # list accounts
-      criteria = data_list[1]
-      print("Param: " + criteria)
-      match_accounts = list_accounts(criteria)
-      data = "Accounts: " + str(match_accounts)
-    elif opcode == '4': # send message
-      receive_user = data_list[1]
-      if receive_user not in accounts:
-        data = "Username " + receive_user + " does not exist."
-      message = data_list[2]
-      data = send_message(username, receive_user, message)
-    elif opcode == '5': # delete account
-      username = data_list[1]
-      try:
-        data = "Account " + username + " deleted."
-        del accounts[username]
-        del messages[username]
-        del logged_in[username]
-        del clients[username]
-      except KeyError:
-        data = "Account " + username + " doesn't exist."
-    else: # error catching
-      print("Error: invalid opcode")
 
-    # send back reversed string
-    if data:
-      client.send(data.encode('ascii'))
+    # List accounts.
+    elif opcode == "list": 
+      if len(request_list) == 1:
+          criteria = ""
+      else:
+        criteria = request_list[1]
+      match_accounts = list_accounts(criteria)
+      response = "Accounts: " + str(match_accounts)
+    
+    # Send message to a user.
+    elif opcode == "send":
+      receive_user = request_list[1]
+
+      # Check whether recipient exists.
+      if receive_user not in logged_in:
+        response = "Username " + receive_user + " does not exist."
+        send_error(client, response)
+        print(response)
+        continue
+      
+      # Prompt message.
+      message_prompt = "\nEnter message below:"
+      client.send(message_prompt.encode('ascii'))
+      message_str = parse_client_request(client, username)
+
+      # Send message.
+      response = send_message(username, receive_user, message_str)
+
+    # Delete account
+    elif opcode == "delete":
+      user_to_delete = request_list[1]
+      if user_to_delete != username and logged_in[user_to_delete]:
+          response = "Cannot delete a logged in user."
+          send_error(client, response)
+          print(response)
+          continue
+      try:
+        response = "Account " + user_to_delete + " deleted."
+        del messages[user_to_delete]
+        del logged_in[user_to_delete]
+        del client_sockets[user_to_delete]
+        del client_threads[user_to_delete]
+      except KeyError:
+        response = "Account " + user_to_delete + " doesn't exist."
+        send_error(client, response)
+        print(response)
+        continue
+    # Error checking for invalid opcode
+    else:
+      if opcode != "":
+        print("Invalid command.")
+      continue
+
+    # Send data back to client.
+    if response:
+      client.send(response.encode('ascii'))
+      response = None
 
   if username:
     logged_in[username] = False
-  # connection closed
 
+  # Close connection
   client.close()
 
 
 def main():
   HOST = '127.0.0.1'
-  PORT = 6043
+  PORT = 6063
 
-  serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-  serversocket.bind((HOST, PORT))
+  server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+  server_socket.bind((HOST, PORT))
 
-  serversocket.listen(1)
-  print("Socket is listening")
+  server_socket.listen(1)
+  thread_running_event.set()
+  print(f"Socket is listening on {HOST}:{PORT}")
 
-  # a forever loop until client wants to exit
-  while True:
-    # connect to client 
-    clientsocket, addr = serversocket.accept()
-    print('Connected to by:', addr[0], ':', addr[1])
-
-    # new thread, return identifier
-    start_new_thread(threaded, (clientsocket,))
+  try:
+    while True:
+      # Connect to client
+      client_socket, client_address = server_socket.accept()
+      print("Connected to " + str(client_address[0]) + ":" + str(client_address[1]))
+          # Start new thread
+      start_new_thread(process_user_request, (client_socket,))
   
-  serversocket.close()
+  # If an error such as a keyboard interrupt occurs.
+  except:
+    kill_server(server_socket)
 
 
 if __name__ == "__main__":

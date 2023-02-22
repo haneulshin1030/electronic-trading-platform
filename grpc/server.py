@@ -5,6 +5,9 @@ import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
 from concurrent import futures
 
+# Maximum message size
+MAX_MESSAGE_SIZE = 280
+
 # Record mapping username -> boolLoggedIn, where boolLoggedIn is True if and only if username is logged in
 logged_in = {}
 
@@ -111,7 +114,7 @@ class ChatApp(pb2_grpc.ChatAppServicer):
         response = "Username " + receive_user + " does not exist."
       # Send message.
       else:
-        messages[receive_user].append("From " + username + ": " + request.message)
+        messages[receive_user].append(("From " + username + ": " + request.message)[0:MAX_MESSAGE_SIZE])
         response = "Message sent to " + receive_user
 
     # Delete account

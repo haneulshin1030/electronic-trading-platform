@@ -6,49 +6,65 @@ import threading
 from threading import Thread
 import time
 
+# Event to indicate that threads are running
+thread_running_event = threading.Event()
 
-# lock = threading.Lock()
-# sending_message = False
+def kill_client(client_socket):
+  """
+  Close thread and socket for the client (if an error such as a keyboard interrupt occurs).
+  """
+  # Close client and thread.
+  try:
+      client_socket.shutdown(socket.SHUT_RDWR)
+  # If client socket is already closed.
+  except OSError:
+      pass
+  print("Closed thread and socket.")
+  client_socket.close()
+  sys.exit(0)
 
-event = threading.Event()
-event.set()
-
-def receive_server_messages(clientsocket):
-  # global sending_message
-  while True:
-    event.wait(timeout=0.1)
-    data = clientsocket.recv(1024)
-    event.clear()
-    sys.stdout.flush()
-    print(str(data.decode('ascii')))
-    event.set()
+def receive_server_messages(client_socket):
+  """
+  Receive server messages
+  """
+  while thread_running_event.is_set():
+    try:
+      response = client_socket.recv(1024)
+      sys.stdout.flush()
+      print(str(response.decode('ascii')))
+      thread_running_event.wait()
+    except ConnectionResetError:
+      kill_client()
+    if not response:
+      thread_running_event.clear()
   return
 
 def main():
   HOST = '127.0.0.1' 
-  PORT = 6043
+  PORT = 6063
 
-  clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-  clientsocket.connect((HOST, PORT))
+  client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+  client_socket.connect((HOST, PORT))
 
-  # global sending_message
+  thread_running_event.set()
+  start_new_thread(receive_server_messages, (client_socket,))
 
-  start_new_thread(receive_server_messages, (clientsocket,))
-
-  # message to send to server
-  while True:
-    event.wait()
+  # Send requests to the server.
+  while thread_running_event.is_set():
     time.sleep(0.001)
     sys.stdout.flush()
-    event.clear()
-    ans = input("\n>>> ")
+    request = input("\n>>> ")
 
-    if ans != "":
-      clientsocket.send(ans.encode('ascii'))
-    event.set()
-
-  # close the connection
-  clientsocket.close()
+    # If we receive a blank space, send a new command prompt. Else, send the request to the server.
+    if request != "":
+      client_socket.send(request.encode('ascii'))
+  
+  try:
+    while True and thread_running_event.is_set():
+      pass
+  except KeyboardInterrupt:
+    kill_client()
+  kill_client()
 
 
 if __name__ == "__main__":
