@@ -1,5 +1,6 @@
 # Chat App
 CS 262: Distributed Computing
+
 Single-server, multi-client chat app in the shell.
 
 ## Wire Protocol
