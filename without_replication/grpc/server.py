@@ -86,7 +86,7 @@ class ChatApp(pb2_grpc.ChatAppServicer):
       # Log out previous user.
       if username and new_username != username:
         logged_in[username] = False
-      username = new_username      
+      username = new_username   
       
       # Check whether user exists.
       if username not in logged_in:
@@ -97,6 +97,8 @@ class ChatApp(pb2_grpc.ChatAppServicer):
     # Response to starting prompt.
     elif opcode == "start": 
       username = request.username
+      print("HERE")
+      print(username)
 
       # Check whether user exists.
       if username not in logged_in:
@@ -127,6 +129,10 @@ class ChatApp(pb2_grpc.ChatAppServicer):
     elif opcode == "delete":
       user_to_delete = request.recipient
       # Unlike in the original version, we do not allow clients to be logged out.
+      print(username) # why is this returning None?
+      # if user_to_delete != username:
+      #   response = "Cannot delete another user."
+      # el
       if user_to_delete in logged_in:
         del messages[user_to_delete]
         del logged_in[user_to_delete]

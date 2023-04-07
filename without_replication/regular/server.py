@@ -250,7 +250,7 @@ def process_user_request(client):
     elif opcode == "delete":
       user_to_delete = request_list[1]
       if user_to_delete != username and logged_in[user_to_delete]:
-          response = "Cannot delete a logged in user."
+          response = "Cannot delete another user."
           send_error(client, response)
           print(response)
           continue
