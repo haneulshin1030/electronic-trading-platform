@@ -1,7 +1,7 @@
-# Chat App
+# Chat App With Replication
 CS 262: Distributed Computing
 
-Single-server, multi-client chat app in the shell.
+Single-server, multi-client chat app in the shell, built with a replicated backend and message-store persistence.
 
 ## Wire Protocol
 1. **Account creation.** `create <username>` creates a new account under `<username>` if it is unused and returns a success statement.
@@ -20,8 +20,7 @@ More details about the design decisions we made can be found in [notebook.md](no
 ## Regular Chat App
 
 Tutorials/Resources referenced: 
-- [Varun's wire protocol demo](https://github.com/vargandhi/cs262-WP)
-- [GeeksForGeeks multithreading](https://www.geeksforgeeks.org/socket-programming-multi-threading-python/)
+- TO BE ADDED
 
 ### Deployment Instructions
 
