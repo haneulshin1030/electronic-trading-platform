@@ -8,9 +8,10 @@ from log_manager import LogManager
 
 # Implementation of the Raft replication protocol
 class RaftProtocol:
-  def __init__(self, ip, port, voting=True):
+  def __init__(self, ip, port, server_name, voting=True):
     self.ip = ip
     self.port = port
+    self.server_name = server_name
 
     # Initialize Raft-specific state variables
     self.current_term = 0 # TODO: or set to 1? need to define
@@ -20,7 +21,7 @@ class RaftProtocol:
     self.votes = set()
 
     # Everything to do with the commit log file
-    self.log_manager = LogManager(ip, port) # TODO: write a log manager class that writes to logs and persists
+    self.log_manager = LogManager(ip, port, server_name) # TODO: write a log manager class that writes to logs and persists
     self.commit_index = 0
 
     # Election timeout
