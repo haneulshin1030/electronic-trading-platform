@@ -1,35 +1,15 @@
 import unittest
 from unittest.mock import MagicMock, Mock, patch
-import time
+import pathlib
 
 import server
-from server import list_accounts, create_account, update_data
-
-
-# Overwrite mock methods from unittest.mock
-# class MockThread:
-#   def __init__(self, socket):
-#     self.socket = socket
-#     # self.host = host
-#     # self.port = port
-  
-#   def send(self, message):
-#     self.socket = message
-#     print("Sending message:", message)
-
-#   def receive(self, message):
-#     self.socket = None
-
-#   def start():
-#     pass
-
-#   def join():
-#     pass
+from server import list_accounts, create_account
+import client
 
 
 class UnitTests(unittest.TestCase):
 
-  # Tests: create_account, login, and update_data
+  # Tests create_account, login, and update_data
   def test_create_account(self):
     server.server_id = 0
     create_account("user1")
@@ -52,6 +32,25 @@ class UnitTests(unittest.TestCase):
   def test_start_heartbeat(self, mock_start_heartbeat):
     server.start_heartbeat(0)
     mock_start_heartbeat.assert_called()
+  
+  # Tests start_server process, check log files are created
+  @patch('server.start_server')
+  def test_start_server(self, mock_start_server):
+    server.start_server()
+    mock_start_server.assert_called()
+
+    path = pathlib.Path('0.csv')
+    self.assertTrue(path.is_file())
+    path = pathlib.Path('1.csv')
+    self.assertTrue(path.is_file())
+    path = pathlib.Path('2.csv')
+    self.assertTrue(path.is_file())
+
+  # Tests leader election process
+  @patch('client.find_leader')
+  def test_find_leader(self, mock_find_leader):
+    client.find_leader()
+    mock_find_leader.assert_called()
 
 if __name__ == '__main__':
   print("Unit tests running!")
