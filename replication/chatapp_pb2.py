@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\"&\n\x04\x44\x61ta\x12\x0b\n\x03\x63sv\x18\x01 \x01(\t\x12\x11\n\tuser_list\x18\x02 \x01(\t\"\x0e\n\x0cUserResponse\"\x12\n\x10HeartbeatRequest\"#\n\x11HeartbeatResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\"^\n\x07Request\x12\x0e\n\x06opcode\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\trecipient\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\r\n\x05regex\x18\x05 \x01(\t\"\x1c\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\t\"\x1c\n\x08Username\x12\x10\n\x08username\x18\x01 \x01(\t\"\x0f\n\rLeaderRequest\" \n\x0eLeaderResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\x32\xe1\x01\n\x04\x43hat\x12!\n\x04Send\x12\x08.Request\x1a\r.UserResponse\"\x00\x12\x34\n\tHeartbeat\x12\x11.HeartbeatRequest\x1a\x12.HeartbeatResponse\"\x00\x12\'\n\x0eServerResponse\x12\x08.Request\x1a\t.Response\"\x00\x12*\n\x0e\x43lientMessages\x12\t.Username\x1a\t.Response\"\x00\x30\x01\x12+\n\x06Leader\x12\x0e.LeaderRequest\x1a\x0f.LeaderResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\"&\n\x04\x44\x61ta\x12\x0b\n\x03\x63sv\x18\x01 \x01(\t\x12\x11\n\tuser_list\x18\x02 \x01(\t\"\x0e\n\x0cUserResponse\"\x12\n\x10HeartbeatRequest\"#\n\x11HeartbeatResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\"^\n\x07Request\x12\x0e\n\x06opcode\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\trecipient\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\r\n\x05regex\x18\x05 \x01(\t\"\x1c\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\t\"\x1c\n\x08Username\x12\x10\n\x08username\x18\x01 \x01(\t\"\x0f\n\rLeaderRequest\" \n\x0eLeaderResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\x32\xde\x01\n\x04\x43hat\x12\x1e\n\x04Send\x12\x05.Data\x1a\r.UserResponse\"\x00\x12\x34\n\tHeartbeat\x12\x11.HeartbeatRequest\x1a\x12.HeartbeatResponse\"\x00\x12\'\n\x0eServerResponse\x12\x08.Request\x1a\t.Response\"\x00\x12*\n\x0e\x43lientMessages\x12\t.Username\x1a\t.Response\"\x00\x30\x01\x12+\n\x06Leader\x12\x0e.LeaderRequest\x1a\x0f.LeaderResponse\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'chatapp_pb2', globals())
@@ -39,5 +39,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _LEADERRESPONSE._serialized_start=303
   _LEADERRESPONSE._serialized_end=335
   _CHAT._serialized_start=338
-  _CHAT._serialized_end=563
+  _CHAT._serialized_end=560
 # @@protoc_insertion_point(module_scope)

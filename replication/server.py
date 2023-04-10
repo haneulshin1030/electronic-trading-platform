@@ -62,15 +62,17 @@ def update_data():
     Sends the updated data, including the list of pending messages and the active users, to each of the servers.
     """
     global server_id
-    if(leader != server_id):
+    if leader != server_id:
         return
     for id, alive in enumerate(active_servers):
         print(id, alive)
+        print(user_list)
         if alive and id != leader and id != server_id:
             channel = grpc.insecure_channel(address_list[id])
             stub = pb2_grpc.ChatStub(channel)
             try:
                 store_messages(messages, server_id)
+                print("sent to", id, user_list)
                 stub.Send(pb2.Data(csv=json.dumps(messages), user_list=json.dumps(user_list)))
             except:
                 print(f"Server failure: {id}")
@@ -89,7 +91,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
         print("Active Users", user_list)
         
         store_messages(messages, server_id)
-        return pb2.UpdateResponse()
+        return pb2.UserResponse()
     
     def ServerResponse(self, request, context): 
         return handle_server_response(request.opcode, request.username, request.recipient, request.message, request.regex)
@@ -99,6 +101,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
         
         if username not in user_list:
             user_list.append(username)
+            update_data()
 
         print(user_list)
         while username in user_list:
@@ -167,7 +170,6 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
       # Log out previous user.
       if username and request_username != username:
         logged_in[username] = False
-        user_list[username] = False
 
       # Check whether username is unique.
       if username in user_list:
@@ -184,7 +186,6 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
       # Log out previous user.
       if username and new_username != username:
         logged_in[username] = False
-        user_list[username] = False
       username = new_username   
       
       # Check whether user exists.
@@ -360,6 +361,7 @@ def start_server():
         )
         for row in csv_reader:
             messages[row[0]].append(row[1])
+            update_data()
 
     server_address = f"{HOST}:{PORT + server_id}"
     server.add_insecure_port(server_address)

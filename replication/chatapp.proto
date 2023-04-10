@@ -3,7 +3,7 @@ syntax = "proto3";
 // The chat service definition.
 service Chat {
   // Updates the databases of the other servers
-  rpc Send(Request) returns (UserResponse) {}
+  rpc Send(Data) returns (UserResponse) {}
   // Sends heartbeat check to other servers
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
 

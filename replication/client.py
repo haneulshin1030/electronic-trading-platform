@@ -50,7 +50,7 @@ def leader_server():
             # If the server is not live, continue.
             except grpc._channel._InactiveRpcError:
                  continue
-        time.sleep(2)
+        time.sleep(1)
 
 def find_leader():
     """
