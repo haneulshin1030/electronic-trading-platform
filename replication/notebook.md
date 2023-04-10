@@ -20,6 +20,11 @@ When the client attempts to connect, they query for the leader and are directed 
 
 ## Testing
 
+Our testing consisted of a mix of manual testing + automated unit testing and within-code assertions. We have assert commands to catch errors for cases such as invalid server IDs. Our unit tests cover the core components of our server and client functions, such as the abilities to create an account, login, update data, list accounts, start and send a heartbeat, start a server, and find the leader in the network of machines.
+
+<img src="unittests.png" width="60%">
+
+
 To test 2-fault tolerance, we ran several tests where we started all three replicas initially, created at least two clients, and sent messages between them (among the other user commands). We then shut off subsets of the replicas, chosen at random, and showed that the clients could continue interacting with a remaining server.
 
 To test persistence, we started all three replicas, sent some messages that were not yet received by the recipient, and then shut down all the servers. We then restarted the servers and showed that the recipient still received their pending messages upon logging in.
