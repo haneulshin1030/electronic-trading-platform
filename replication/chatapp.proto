@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+// The chat service definition.
+service Chat {
+  // Updates the databases of the other servers
+  rpc Send(Request) returns (UserResponse) {}
+  // Sends heartbeat check to other servers
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+
+
+  // Client chat to server
+  rpc ServerResponse (Request) returns (Response) {}
+  // Sends stream of client<>client messages to each client
+  rpc ClientMessages (Username) returns (stream Response) {}
+
+  // Client asking whether server is leader
+  rpc Leader (LeaderRequest) returns (LeaderResponse) {}
+}
+
+// The request message containing the user's name.
+message Data {
+  string csv = 1;
+  string user_list = 2;
+}
+
+// The response message containing the greetings
+message UserResponse {
+}
+
+// Heartbeat request
+message HeartbeatRequest {
+}
+
+// Heartbeat response with leader of the server
+message HeartbeatResponse {
+  int32 leader = 1;
+}
+
+message Request {
+  string opcode = 1;
+  string username = 2;
+  string recipient = 3;
+  string message = 4;
+  string regex = 5;
+}
+
+message Response {
+  string response = 1;
+}
+
+message Username {
+  string username = 1;
+}
+
+message LeaderRequest {
+}
+
+message LeaderResponse {
+  int32 leader = 1;
+}
