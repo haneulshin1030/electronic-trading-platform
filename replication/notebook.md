@@ -1,6 +1,6 @@
 # Engineering Notebook
 
-## Rewriting our gRPC Wire Protocol.
+## Rewriting our gRPC Wire Protocol
 
 Our original gRPC wire protocol allowed clients to interact with a chat application by using keywords in their messages to specify the command they wished to run. The protocol consisted of five keywords for actions and their corresponding behavior, the subsequent list of strings that specifies the corresponding parameters, including action, sender username, recipient username, message content, and regex expression.
 

@@ -22,11 +22,9 @@ More details about the design decisions we made can be found in [notebook.md](no
 Install all necessary libraries using this command:
 ```pip3 install -r requirements.txt```
 
-In your terminal, enter `/grpc`.
-
 To compile the .proto file and generate the stubs, execute this command:
 ```python3 -m grpc_tools.protoc --proto_path=. ./chatapp.proto --python_out=. --grpc_python_out=. ```
 
-To run the server, execute `python3 server.py`.
+To run each server, execute `python3 server.py --server i` for `i` in `[0, 1, 2]`.
 
 To run the client, execute `python3 client.py`.
