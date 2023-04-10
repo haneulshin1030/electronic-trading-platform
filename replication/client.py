@@ -18,14 +18,13 @@ def listen(stub, username):
     """
     Listen for messages from other clients.
     """
-    print("listening")
     messages = stub.ClientMessages(pb2.Username(username=username))
 
     try:
-        # TODO: change this
         while True:
-            m = next(messages)
-            print(m.response)
+            # When a new message is found, iterate to it and print it.
+            response = next(messages)
+            print(response.response)
     except:
         return
 
@@ -54,7 +53,7 @@ def leader_server():
 
 def find_leader():
     """
-    Finds which server is the leader.
+    Determines which server is the leader.
     """
     channel = None
     stub = None
@@ -65,10 +64,10 @@ def find_leader():
                 channel = grpc.insecure_channel(addr)
                 stub = pb2_grpc.ChatStub(channel)
 
-                # ask server who leader is
-                resp = stub.Leader(pb2.LeaderRequest())
-                print("Leader:", resp.leader)
-                return resp.leader
+                # Query for the leader server. If found, return.
+                response = stub.Leader(pb2.LeaderRequest())
+                print("Leader:", response.leader)
+                return response.leader
         
             # server was not live, try next server
             except grpc._channel._InactiveRpcError:

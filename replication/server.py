@@ -65,14 +65,11 @@ def update_data():
     if leader != server_id:
         return
     for id, alive in enumerate(active_servers):
-        print(id, alive)
-        print(user_list)
         if alive and id != leader and id != server_id:
             channel = grpc.insecure_channel(address_list[id])
             stub = pb2_grpc.ChatStub(channel)
             try:
                 store_messages(messages, server_id)
-                print("sent to", id, user_list)
                 stub.Send(pb2.Data(csv=json.dumps(messages), user_list=json.dumps(user_list)))
             except:
                 print(f"Server failure: {id}")
@@ -84,19 +81,26 @@ class ChatServicer(pb2_grpc.ChatServicer):
         return pb2.HeartbeatResponse(leader=leader)
     
     def Send(self, request, context):
+        """
+        Send updated data to the databases.
+        """
         global messages, user_list, server_id
         messages = json.loads(request.csv)
         user_list = json.loads(request.user_list)
-        print("Database", messages)
-        print("Active Users", user_list)
         
         store_messages(messages, server_id)
         return pb2.UserResponse()
     
     def ServerResponse(self, request, context): 
+        '''
+        Manage the server's response to user input.
+        '''
         return handle_server_response(request.opcode, request.username, request.recipient, request.message, request.regex)
     
     def ClientMessages(self, username, context):
+        '''
+        Return the client's pending messages, and update the data accordingly.
+        '''
         username = username.username
         
         if username not in user_list:
@@ -121,12 +125,13 @@ def list_accounts(criteria):
   List accounts (or a subset of the accounts, by text wildcard).
   """
   global user_list
+  unique_elements = list(set(user_list))
   if criteria == "":
-    return list(set(user_list))
+    return unique_elements
   else:
     matching_names = []
     regex = re.compile(criteria)
-    for key in user_list.keys():
+    for key in unique_elements:
       if regex.match(key):
         matching_names.append(key)
     return matching_names
@@ -156,7 +161,6 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
     global leader
     global server_id
     global user_list
-    print("Leader:", leader)
     if(server_id != leader):
         return pb2.Response(response = ERROR_NOT_LEADER)
 
@@ -259,27 +263,6 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
     if response:
       print(response)
       return pb2.Response(response = response) 
-    else:
-       print("bad")
-
-# class Chat(pb2_grpc.ChatServicer):
-#   def __init__(self):
-#     pass
-
-#   def Listen(self, request, context):
-#     """
-#     Listen for pending messages.
-#     """
-#     message_list = []
-#     if request.username in messages:
-#       message_list = messages[request.username]
-#       messages[request.username] = []
-#     return pb2.Responses(message = "\n".join(message_list), empty = len(message_list) == 0)
-
-#   def Send(self, request, context):
-#     """
-#     Send request to server.
-#     """
 
 def send_heartbeat(stub, id):
     """
@@ -309,7 +292,9 @@ def kill_server():
     sys.exit(0)
 
 def check_leader():
-  # Check if leader is alive.
+  '''
+  Check if leader is currently active. If not, set a new leader.
+  '''
   global leader, messages
   if leader is None or not active_servers[leader]:
       for id, alive in enumerate(active_servers):
@@ -317,6 +302,7 @@ def check_leader():
               leader = id
               print(f"The new leader is {leader}")
               return
+      # No leaders found
       print("Error: No active servers.")
       kill_server()
 
@@ -335,11 +321,11 @@ def start_heartbeat(id):
         send_heartbeat(stub, id)
         check_leader()
 
-
 def start_server():
     """
     Start the server.
     """
+    # Start heartbeat of other servers.
     for i in range(3):
         if i != server_id:
             heartbeat_thread = threading.Thread(
@@ -355,14 +341,15 @@ def start_server():
 
     global messages
     messages = {}
+
+    # Create csv file and append data.
+    open(f"{server_id}.csv", "a+")
     with open(f"{server_id}.csv", "r+") as csv_file:
-        csv_reader = csv.reader(
-            csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True
-        )
+        csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
         for row in csv_reader:
             messages[row[0]].append(row[1])
-            update_data()
 
+    # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
     server.add_insecure_port(server_address)
     print(f"Starting server {server_id} at address {server_address}")
