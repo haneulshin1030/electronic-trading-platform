@@ -55,7 +55,10 @@ def store_messages(messages, file_name):
     """
     with open(f"{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
+
+        # Store user list and message queue
         for username, message_list in list(messages.items()):
+          csv_writer.writerow(["users_list"] + user_list)
           for message in message_list:
             csv_writer.writerow([username] + [message])
 
@@ -76,7 +79,6 @@ def update_data():
             except:
                 print(f"Server failure: {id}")
                 active_servers[id] = False
-
 
 class ChatServicer(pb2_grpc.ChatServicer):
     def Heartbeat(self, request, context):
@@ -162,7 +164,7 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
     global leader
     global server_id
     global user_list
-    if(server_id != leader):
+    if server_id != leader:
         return pb2.Response(response = ERROR_NOT_LEADER)
 
     username = None
@@ -239,7 +241,7 @@ def handle_server_response(opcode, request_username, recipient, message, regex):
          response = "Cannot delete a user who is currently active."
          return pb2.Response(response = response) 
       
-      if user_to_delete in   update_data():
+      if user_to_delete in user_list:
         del messages[user_to_delete]
         del user_list[user_to_delete]
         response = "Account " + user_to_delete + " deleted."
@@ -340,20 +342,26 @@ def start_server():
     pb2_grpc.add_ChatServicer_to_server(ChatServicer(), server)
 
     global messages
+    global user_list
     # messages = {}
 
     # Create csv file and append data.
     open(f"{server_id}.csv", "a+")
     with open(f"{server_id}.csv", "r+") as csv_file:
         csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
+
         for row in csv_reader:
-            # print(row[0], row[1])
-            if row[0] in user_list:
+            if row[0] == "users_list":
+               user_list += row
+               continue
+            print(row[0], row[1])
+            if row[0] in messages.keys():
               messages[row[0]].append(row[1])
             else:
                user_list.append(row[0])
                messages[row[0]] = [row[1]]
         update_data()
+    open(f"{server_id}.csv", "w+")
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
