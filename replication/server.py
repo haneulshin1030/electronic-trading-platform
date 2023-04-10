@@ -7,6 +7,7 @@ import optparse
 import concurrent.futures
 import random
 import json
+import re
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
@@ -373,7 +374,7 @@ def main():
   server_id = int(options.server_id)
   
   if server_id not in [0, 1, 2]:
-      print("Error: Must input a valid server id in [0, 1, 2].")
+      assert "Error: Must input a valid server id in [0, 1, 2]."
       return
   
   active_servers[server_id] = True
