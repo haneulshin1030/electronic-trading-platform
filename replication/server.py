@@ -55,8 +55,9 @@ def store_messages(messages, file_name):
     """
     with open(f"{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
-        for username, message in list(messages.items()):
-          csv_writer.writerow([username] + message)
+        for username, message_list in list(messages.items()):
+          for message in message_list:
+            csv_writer.writerow([username] + [message])
 
 def update_data():
     """
@@ -111,7 +112,6 @@ class ChatServicer(pb2_grpc.ChatServicer):
         print(user_list)
         while username in user_list:
             if username in messages and len(messages[username]) != 0:
-                print("!!", messages[username])
                 for message in messages[username]:
                   yield pb2.Response(response = message)
                 messages[username] = []
@@ -338,17 +338,22 @@ def start_server():
     global server
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
     pb2_grpc.add_ChatServicer_to_server(ChatServicer(), server)
-    open(f"{server_id}.csv", "a+")
 
     global messages
-    messages = {}
+    # messages = {}
 
     # Create csv file and append data.
     open(f"{server_id}.csv", "a+")
     with open(f"{server_id}.csv", "r+") as csv_file:
         csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
         for row in csv_reader:
-            messages[row[0]].append(row[1])
+            # print(row[0], row[1])
+            if row[0] in user_list:
+              messages[row[0]].append(row[1])
+            else:
+               user_list.append(row[0])
+               messages[row[0]] = [row[1]]
+        update_data()
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
