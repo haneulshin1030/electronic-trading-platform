@@ -1,4 +1,4 @@
-# Chat App
+# Chat App (OLD)
 CS 262: Distributed Computing
 
 Single-server, multi-client chat app in the shell, built with replication and 2-fault tolerance.
