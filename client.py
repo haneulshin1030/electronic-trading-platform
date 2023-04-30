@@ -91,6 +91,10 @@ def print_response(response):
    else:
       print(response, flush = True)
 
+def query():
+    response = input().lower()
+    return response in ["", "y", "ye", "yes"]
+
 def main():
     listen_thread = None
 
@@ -99,65 +103,79 @@ def main():
     channel = grpc.insecure_channel(server_list[leader])
     stub = pb2_grpc.ChatStub(channel)
       
-    # Ask for initial username so that the client can listen for messages.
-    username = input("Enter a username or create a new one: ")
+    opcode = None
+    username = None
+    password = None
 
-    if not username:
-      return 
-    response = stub.ServerResponse(
-      pb2.Request(opcode="start", username=username, recipient="", message="", regex="")
-    )
+    # Prompt the client to either sign in or create a new account until success. 
+    while(not username):
+      print("Would you like to log in into an existing account? (Y/n)")
+
+      if query():
+        opcode = "login"
+        username = input("Username:")
+        password = input("Password:")
+      else:
+        opcode = "create"
+        print("Please select a username.")
+        username = input("Username:")
+        print("Please select a password satisfying the criterion.")
+        password = input("Password:")
+
+      response = stub.ServerResponse(
+        response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, dir="", symbol="", price=-1, size=-1))
+      )
+      if not response.startswith("Success"):
+        username = None
 
     print_response(response.response)
 
     listen_thread = threading.Thread(target=(listen), args=(stub, username))
     listen_thread.start()
 
-
     while True:
       try:
         while True:
           request = input("\n>>> ")
-          request_list = request.split(" ") 
-          if len(request_list) == 0:
+          order_params = request.split(" ") 
+          if len(order_params) == 0:
             continue
 
-          # Initialize parameters of Request
-          opcode = request_list[0]
-          recipient = ""
-          message = ""
-          regex = ""
+          # Initialize parameters of Order
+          opcode = order_params[0]
+          dir = ""
+          symbol = ""
+          price = -1
+          size = -1
 
           # Parse client requests.
 
           # Create account.
           if opcode == "create": 
-            username = request_list[1]
+            username = order_params[1]
+            password = order_params[2]
 
           # Log in.
           elif opcode == "login": 
-            username = request_list[1]
-
-          # List accounts.
-          elif opcode == "list": 
-            if len(request_list) > 1:
-              regex = request_list[1]
+            username = order_params[1]
+            password = order_params[2]
           
           # Send message to a user.
           elif opcode == "send":
-            recipient = request_list[1]
-            message = request_list[2]
+            opcode, dir, symbol, price, size = order_params
     
           # Delete account
-          elif opcode == "delete":
-            recipient = request_list[1]
+          # elif opcode == "delete":
+          #   recipient = order_params[1]
 
           else:
             if opcode != "":
               print("Error: Invalid command.", flush = True)
             continue
-          response = stub.ServerResponse(pb2.Request(opcode=opcode, username=username, recipient=recipient, message=message, regex=regex))
+          
+          response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, dir=dir, symbol=symbol, price=price, size=size))
           print_response(response.response)
+          
       # Exception for if the previous leader server went down and a new leader was determined.
       except (grpc._channel._InactiveRpcError, LeaderDisconnected):
           # Terminate the current listening thread and find a new leader.
@@ -175,7 +193,7 @@ def main():
       # Exception for if the user does a keyboard interrupt.
       except KeyboardInterrupt:
           try:
-            response = stub.ServerResponse(pb2.Request(opcode="except", username=username, recipient='', message="", regex=""))
+            response = stub.ServerResponse(pb2.Order(opcode="except", username=username, password="", dir="", symbol="", price=-1, size=-1))
             print_response(response.response)
           except grpc._channel._InactiveRpcError:
               pass
