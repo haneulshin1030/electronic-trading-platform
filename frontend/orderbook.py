@@ -6,6 +6,9 @@ class OrderBook(tk.Frame):
     tk.Frame.__init__(self, parent)
     
     self.stock_symbol = stock_symbol
+
+    # Set window title
+    self.winfo_toplevel().title("Order Book")
     
     # # Create the table headers and lines
     tk.Label(self, text=self.stock_symbol).grid(row=0, columnspan=5)
