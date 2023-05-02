@@ -47,14 +47,18 @@ zero_positions = dict.fromkeys(symbol_list, 0)
 
 dir_list = ['buy', 'sell']
 
+# default_dict = {'buy': {}, 'sell': {}}
+
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
-# Where the bid and offer dictionaries map price -> [{user_1, quantity_1}, ..., {user_n, quantity_n}]
+# Where the bid and offer dictionaries map price -> [[user_1, quantity_1], ..., [user_n, quantity_n]]
 # sorted by time priority, such that if i < j, user i has time priority over user j
-open_orders = dict.fromkeys(symbol_list, {'buy': {}, 'sell': {}})
+open_orders = { symbol : {'buy': {}, 'sell': {}} for symbol in symbol_list }
 
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
 # Where the bid and offer dictionaries map price -> total quantity
-order_book = dict.fromkeys(symbol_list, {'buy': {}, 'sell': {}})
+order_book = { symbol : {'buy': {}, 'sell': {}} for symbol in symbol_list }
+
+
 
 ########## USER INFORMATION ##########
 
@@ -64,7 +68,7 @@ user_status = {}
 # Dictionary mapping user -> password
 passwords = {}
 
-# Dictionary mapping user, symbol -> user's position in that symbol in shares
+# Dictionary mapping username, symbol -> user's position in that symbol in shares
 positions = {}
 
 # Dictionary mapping user -> [message_1, ..., message_n], where message_i is a response message from the server
@@ -85,8 +89,8 @@ def save_data(open_orders, order_book, user_status, passwords, positions, messag
         for symbol in symbol_list:
           for dir in dir_list:
             for price in open_orders[symbol][dir]:
-              for user, size in open_orders[symbol][dir][price]:
-                csv_writer.writerow([symbol] + [dir] + [price] + [user] + [size])
+              for username, size in open_orders[symbol][dir][price]:
+                csv_writer.writerow([symbol] + [dir] + [price] + [username] + [size])
               
     # Store order book
     with open(f"order_book_{file_name}.csv", "w+") as f:
@@ -101,41 +105,85 @@ def save_data(open_orders, order_book, user_status, passwords, positions, messag
     with open(f"user_status_{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
 
-        for user, online in list(user_status.items()):
-          csv_writer.writerow([user] + [online])
+        for username, online in list(user_status.items()):
+          csv_writer.writerow([username] + [online])
 
     # Store user status
     with open(f"passwords_{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
 
-        for user, password in list(passwords.items()):
-          csv_writer.writerow([user] + [password])
+        for username, password in list(passwords.items()):
+          csv_writer.writerow([username] + [password])
 
     # Store positions
     with open(f"positions_{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
 
         for user in positions.keys():
-          for symbol, position in list(positions[user].items()):
-            csv_writer.writerow([user] + [symbol] + [position])
+          for symbol, position in list(positions[username].items()):
+            csv_writer.writerow([username] + [symbol] + [position])
 
     # Store message queue
     with open(f"messages_{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
 
-        for user, message_list in list(messages.items()):
+        for username, message_list in list(messages.items()):
           for message in message_list:
-            csv_writer.writerow([user] + [message])
+            csv_writer.writerow([username] + [message])
 
-def update_order_book(symbol, dir, price, user, size):
-  global order_book
-  
-  symbol, dir, price, user, size = row
+def post_order(username, dir, symbol, sgn, price, size):
+  global open_orders, order_book, messages
+  if size == 0:
+    return
+    
   if price in open_orders[symbol][dir]:
-    open_orders[symbol][dir][price].append({user, size})
+    open_orders[symbol][dir][price].append([username, size])
+    order_book[symbol][dir][price] += size
   else:
-    open_orders[symbol][dir][price] = ({user, size})
+    open_orders[symbol][dir][price] = [[username, size]]
+    order_book[symbol][dir][price] = size
+    
+  update_data()
+  return
   
+def match_trade(username, dir, symbol, sgn, opp_sgn, price, size, order_was_taken=False):
+  global positions, messages, open_orders, order_book
+  
+  if order_was_taken:
+    print(f"Order book before match: \n {order_book[symbol]}\n")
+  
+  # Update user information
+  positions[username][symbol] += sgn * size
+  positions[username]['USD'] += opp_sgn * size * price
+  update_data()
+  
+  # If the user is the counterparty who posted the trade (maker)
+  if order_was_taken:
+    messages[username].append(trade_message(username, dir, symbol, price, size))
+
+    # Update open orders
+
+    # If total quantity at the price with the counterparty was taken
+    if size < open_orders[symbol][dir][price][0][1]:
+      open_orders[symbol][dir][price][0][1] -= size
+    else:
+      open_orders[symbol][dir][price].pop(0)
+      if len(open_orders[symbol][dir][price]) == 0:
+        open_orders[symbol][dir].pop(price)
+    
+    # Update order book
+    
+    # If total quantity at the price was taken
+    if size < order_book[symbol][dir][price]:
+      order_book[symbol][dir][price] -= size
+    else:
+      order_book[symbol][dir].pop(price)
+              
+    update_data()
+  
+  if order_was_taken:
+    print(f"Order book after match: \n {order_book[symbol]}\n")
+  return trade_message(username, dir, symbol, price, size)
 
 def update_data():
     """
@@ -149,7 +197,7 @@ def update_data():
             channel = grpc.insecure_channel(address_list[id])
             stub = pb2_grpc.ChatStub(channel)
             try:
-                save_data(open_orders, order_book, user_status, passwords, positions, messages, file_name):
+                save_data(open_orders, order_book, user_status, passwords, positions, messages, file_name)
                 stub.Send(pb2.ServerData(open_orders=json.dumps(open_orders), order_book=json.dumps(order_book), user_status=json.dumps(user_status), passwords=json.dumps(passwords), positions=json.dumps(positions), messages=json.dumps(messages)))
             except:
                 print(f"Server failure: {id}")
@@ -171,16 +219,16 @@ class ChatServicer(pb2_grpc.ChatServicer):
         positions = json.loads(order.positions)
         messages = json.loads(order.messages)
         
-        save_data(open_orders, order_book, user_status, passwords, positions, messages, file_name):
+        save_data(open_orders, order_book, user_status, passwords, positions, messages, file_name)
         return pb2.UserResponse()
     
     def ServerResponse(self, order, context): 
         '''
         Manage the server's response to user input.
         '''
-        return handle_server_response(order.opcode, order.user, order.password, order.dir, order.symbol, order.price, order.size)
+        return handle_server_response(order.opcode, order.username, order.password, order.dir, order.symbol, order.price, order.size)
     
-    def ClientMessages(self, user, context):
+    def ClientMessages(self, username, context):
         '''
         Return the client's pending messages, and update the data accordingly.
         '''
@@ -192,21 +240,22 @@ class ChatServicer(pb2_grpc.ChatServicer):
         #     update_data()
 
         while user in messages.keys():
-              for message in messages[user]:
+              for message in messages[username]:
                 yield pb2.Response(response = message)
-              messages[user] = []
+              messages[username] = []
         update_data()
 
     def Leader(self, request, context):
         return pb2.LeaderResponse(leader = leader)
 
 
-def login(username):
+def login(username, password):
   """
   Log the user in.
   """
   global user_status
   user_status[username] = True
+  update_data()
   return "Success: Account " + username + " logged in."
 
 def create_account(username, password):
@@ -220,15 +269,38 @@ def create_account(username, password):
   passwords[username] = password
   positions[username] = zero_positions
   messages[username] = []
+  update_data()
   return "Success: Account " + username + " created and logged in."
 
 def valid_password(password):
   return True
 
-def trade_message(dir, symbol, price, size):
-  action = "Bought" if dir == "buy" else "Sold"
+def trade_message(username, dir, symbol, price, size):
+  global messages
+  action_past = "Bought" if dir == "buy" else "Sold"
   preposition = "for" if dir == "buy" else "at"
-  return f"{action} {size} shares of {symbol} {preposition} ${price}/share."
+  return f"{action_past} {size} shares of {symbol} {preposition} ${price}/share."
+
+def post_message(username, dir, symbol, price, size):
+  preposition = "for" if dir == "buy" else "at"
+  return f"Posted an order to {dir} {size} shares of {symbol} {preposition} ${price}/share."
+  
+
+def find_best_price(opp, symbol, price):
+  global open_orders
+  
+  # Find best existing bid or offer price
+  best_price = None
+  if opp == "sell":
+    best_price = min(open_orders[symbol][opp].keys())
+    if price < best_price:
+      return None
+  else:
+    best_price = max(open_orders[symbol][opp].keys())
+    if price > best_price:
+      return None
+  return best_price
+        
 
 def handle_server_response(opcode, username, password, dir, symbol, price, size):
     '''
@@ -242,113 +314,112 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     current_user = None
     response = None
-
+  
     # Create account.
     if opcode == "create": 
 
       # Check whether username is unique.
       if username in user_status:
-        response = "Username already exists."
+        response = "Failure: Username already exists."
       elif not valid_password(password):
-        response = "Invalid password."
+        response = "Failure: Invalid password."
       else:    
         # Create new user.
-        response = create_account(username)
-        update_data()
+        response = create_account(username, password)
 
     # Log in.
     elif opcode == "login": 
-      new_username = request_username
+      new_username = username
       
       # Check whether user exists.
       if username not in user_status or passwords[username] != password:
-        response = "Username and/or password is not valid."
+        response = "Failure: Username and/or password is not valid."
       else:
-        response = login(username)
-        update_data()
+        response = login(username, password)
 
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
-    elif opcode == "order":
+    elif opcode == "buy" or opcode == "sell":
+      
+      preposition = None
       
       # Opposite direction
       if dir == "buy":
         opp = "sell"
         sgn = 1
         opp_sgn = -1
+        preposition = "for"
       else:
         opp = "buy"
         sgn = -1
         opp_sgn = 1
+        preposition = "at"
+      
+      print(f"\nORDER RECEIVED: Received order to {dir} {size} shares of {symbol} {preposition} ${price}/share.")
       
       # Check if there are matching trades, and excute them if so
       
       trade_size = 0
       cumulative_price = 0
       
-      # Lock?
-      
-      while True:
-        # Find best existing bid or offer price
-        if opp == "sell":
-          best_price = min(open_orders[symbol][opp], key=open_orders[symbol][opp].get)
-          if price < best_price:
-            break
-        else:
-          best_price = min(open_orders[symbol][opp], key=open_orders[symbol][opp].get)
-          if price > best_price:
-            break
+      # TODO: Lock?
+
+      while size - trade_size > 0:
+        print("Matching trades...")
+        # print(f"Order book: \n {order_book[symbol]}")
         
-        while size - trade_size > 0 and len(open_orders[symbol][opp][best_price]) > 0:
+        # Check if there are no orders in the opposite direction
+        if len(order_book[symbol][opp]) == 0:
+          print("No orders in the opposite direction.")
+          break
+        
+        best_price = find_best_price(opp, symbol, price)
+        if best_price is None:
+          break
+        print(order_book)
+        print(open_orders)
+        print(f"Current best price: {best_price}")
+        
+        while size - trade_size > 0 and best_price in open_orders[symbol][opp]:
           cur_size = min(open_orders[symbol][opp][best_price][0][1], size - trade_size)
-          
+
           # Trade occurred
           if cur_size > 0:
             trade_size += cur_size
             cumulative_price += cur_size * best_price
             counterparty = open_orders[symbol][opp][best_price][0][0]
+            print(f"Matching {cur_size} shares at price {best_price} with {counterparty}...")
             
             # Update counterparty information
-            positions[counterparty][symbol] += opp_sgn * cur_size
-            positions[counterparty]['USD'] += sgn * cur_size * best_price
-            messages[counterparty].append(trade_message(opp, symbol, best_price, cur_size))
-            
-            # Update open orders
-            if cur_size < open_orders[symbol][opp][best_price][0][1]:
-              open_orders[symbol][opp][best_price][0][1] -= cur_size
-            else:
-              open_orders[symbol][opp][best_price][0].pop(0)
-            
-            # Update order book
-            if cur_size == order_book[symbol][opp][best_price]:
-              order_book[symbol][opp].pop(best_price)
-            else:
-              order_book[symbol][opp][best_price] -= cur_size
+            match_trade(counterparty, opp, symbol, opp_sgn, sgn, best_price, cur_size, order_was_taken=True)
+            print("Trades matched")
+      
+      print(f"Matched a total of {trade_size} shares.\n")
       
       # Update user information
-      average_price = cumulative_price / trade_size
-      positions[counterparty][symbol] += sgn * trade_size
-      positions[counterparty]['USD'] += opp_sgn * trade_size * average_price
-      messages[counterparty].append(trade_message(dir, symbol, average_price, trade_size))       
-      
-      # Update open orders and order book
-      if trade_size < size:
-        if price in order_book[symbol][dir]:
-          open_orders[symbol][dir][price].append({username, size - trade_size})
-          order_book[symbol][dir][price] += size - trade_size
-        else:
-          open_orders[symbol][dir][price] = [{username, price}]
-          order_book[symbol][dir][price] = size - trade_size
+      if trade_size > 0:
+        average_price = round(cumulative_price / trade_size, 2)
+        match_trade(username, dir, symbol, sgn, opp_sgn, average_price, trade_size)
+        response = trade_message(username, dir, symbol, average_price, trade_size)
+      else:
+        response = ""
 
-      update_data()
-      
+      if trade_size < size:
+        print(f"Posting order for the remaining {size - trade_size} shares...")
+        
+        # Update open orders and order book
+        post_order(username, dir, symbol, sgn, price, size - trade_size)
+        post_message_success = post_message(username, dir, symbol, price, size - trade_size)
+        print(f"{post_message_success}\n")
+        print(f"Open orders: \n {open_orders[symbol]}\n")
+        response += ("\n" if trade_size > 0 else "") + post_message_success
       # Unlock?
       
     # Exception
     elif opcode == "except":
-      del messages[request_username]
-      del logged_in[request_username]
-      del user_list[request_username]
+      del messages[username]
+      del logged_in[username]
+      del user_list[username]
       return pb2.Response(response = "")
 
     # Error checking for invalid opcode
@@ -359,7 +430,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         response = ""
 
     if response:
-      print(response)
+      print(f"Sending response to server: \"{response}\" \n")
       return pb2.Response(response = response) 
 
 def send_heartbeat(stub, id):
@@ -372,7 +443,7 @@ def send_heartbeat(stub, id):
         global leader
         leader = response.leader
     except:
-        print(f"Server currently down: {id}.")
+        # print(f"Server currently down: {id}.") UNCOMMENT THIS?
         active_servers[id] = False
   
 def kill_server():
@@ -442,80 +513,79 @@ def start_server():
 
     # Read csv files into the server data
     
-    open(f"open_orders_{server_id}.csv", "a+")
-    with open(f"open_orders_{server_id}.csv", "r+") as csv_file:
-      csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
-      for row in csv_reader:
-        symbol, dir, price, user, size = row
-        if price in open_orders[symbol][dir]:
-          open_orders[symbol][dir][price].append({user, size})
-        else:
-          open_orders[symbol][dir][price] = ({user, size})
-        
+    # open(f"open_orders_{server_id}.csv", "a+")
+    # with open(f"open_orders_{server_id}.csv", "r+") as csv_file:
+    #   csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
+    #   for row in csv_reader:
+    #     dir, symbol, price, username, size = row
+    #     if price in open_orders[symbol][dir]:
+    #       open_orders[symbol][dir][price].append([username, size])
+    #     else:
+    #       open_orders[symbol][dir][price] = ([username, size])
 
+    # # Store open orders
+    # with open(f"open_orders_{server_id}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-    # Store open orders
-    with open(f"open_orders_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for symbol in symbol_list:
-          for dir in dir_list:
-            for price in open_orders[symbol][dir]:
-              for user, size in open_orders[symbol][dir][price]:
-                csv_writer.writerow([symbol] + [dir] + [price] + [user] + [size])
+    #     for symbol in symbol_list:
+    #       for dir in dir_list:
+    #         for price in open_orders[symbol][dir]:
+    #           for username, size in open_orders[symbol][dir][price]:
+    #             csv_writer.writerow([symbol] + [dir] + [price] + [username] + [size])
               
-    # Store order book
-    with open(f"order_book_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
+    # file_name = server_id
+    # # Store order book
+    # with open(f"order_book_{file_name}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-        for symbol in symbol_list:
-          for dir in dir_list:
-            for price, size in list(order_book[symbol][dir].items()):
-              csv_writer.writerow([symbol] + [dir] + [price] + [size])
+    #     for symbol in symbol_list:
+    #       for dir in dir_list:
+    #         for price, size in list(order_book[symbol][dir].items()):
+    #           csv_writer.writerow([symbol] + [dir] + [price] + [size])
                 
-    # Store user status
-    with open(f"user_status_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
+    # # Store user status
+    # with open(f"user_status_{file_name}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-        for user, online in list(user_status.items()):
-          csv_writer.writerow([user] + [online])
+    #     for username, online in list(user_status.items()):
+    #       csv_writer.writerow([username] + [online])
 
-    # Store user status
-    with open(f"passwords_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
+    # # Store user status
+    # with open(f"passwords_{file_name}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-        for user, password in list(passwords.items()):
-          csv_writer.writerow([user] + [password])
+    #     for username, password in list(passwords.items()):
+    #       csv_writer.writerow([username] + [password])
 
-    # Store positions
-    with open(f"positions_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
+    # # Store positions
+    # with open(f"positions_{file_name}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-        for user in positions.keys():
-          for symbol, position in list(positions[user].items()):
-            csv_writer.writerow([user] + [symbol] + [position])
+    #     for user in positions.keys():
+    #       for symbol, position in list(positions[username].items()):
+    #         csv_writer.writerow([username] + [symbol] + [position])
 
-    # Store message queue
-    with open(f"messages_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
+    # # Store message queue
+    # with open(f"messages_{file_name}.csv", "w+") as f:
+    #     csv_writer = csv.writer(f)
 
-        for user, message_list in list(messages.items()):
-          for message in message_list:
-            csv_writer.writerow([user] + [message])
+    #     for username, message_list in list(messages.items()):
+    #       for message in message_list:
+    #         csv_writer.writerow([username] + [message])
             
             
-        for row in csv_reader:
-            if row[0] == "users_list":
-               user_list += row
-               continue
-            print(row[0], row[1])
-            if row[0] in messages.keys():
-              messages[row[0]].append(row[1])
-            else:
-               user_list.append(row[0])
-               messages[row[0]] = [row[1]]
-        update_data()
-    open(f"{server_id}.csv", "w+")
+    #     for row in csv_reader:
+    #         if row[0] == "users_list":
+    #            user_list += row
+    #            continue
+    #         print(row[0], row[1])
+    #         if row[0] in messages.keys():
+    #           messages[row[0]].append(row[1])
+    #         else:
+    #            user_list.append(row[0])
+    #            messages[row[0]] = [row[1]]
+    #     update_data()
+    # open(f"{server_id}.csv", "w+")
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
