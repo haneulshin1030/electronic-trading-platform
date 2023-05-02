@@ -21,12 +21,12 @@ def listen(stub, username):
     messages = stub.ClientMessages(pb2.Username(username=username))
 
     try:
-        while True:
-            # When a new message is found, iterate to it and print it.
-            response = next(messages)
-            print(response.response)
+      while True:
+        # When a new message is found, iterate to it and print it.
+        response = next(messages)
+        print(response.response)
     except:
-        return
+      return
 
 def leader_server():
     """
@@ -106,26 +106,26 @@ def main():
     opcode = None
     username = None
     password = None
-
+    
     # Prompt the client to either sign in or create a new account until success. 
     while(not username):
-      print("Would you like to log in into an existing account? (Y/n)")
+      print("Would you like to log in to an existing account? (Y/n)")
 
       if query():
         opcode = "login"
-        username = input("Username:")
-        password = input("Password:")
+        username = input("Username: ")
+        password = input("Password: ")
       else:
         opcode = "create"
         print("Please select a username.")
-        username = input("Username:")
+        username = input("Username: ")
         print("Please select a password satisfying the criterion.")
-        password = input("Password:")
+        password = input("Password: ")
 
-      response = stub.ServerResponse(
-        response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, dir="", symbol="", price=-1, size=-1))
-      )
-      if not response.startswith("Success"):
+      response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, symbol="", dir="", price=-1, size=-1))
+      
+      if not response.response.startswith("Success"):
+        print_response(response.response)
         username = None
 
     print_response(response.response)
@@ -161,8 +161,11 @@ def main():
             password = order_params[2]
           
           # Send message to a user.
-          elif opcode == "send":
-            opcode, dir, symbol, price, size = order_params
+          elif opcode == "buy" or opcode == "sell":
+            opcode, symbol, price, size = order_params
+            price = float(price)
+            size = int(size)         
+            dir = opcode
     
           # Delete account
           # elif opcode == "delete":
@@ -173,7 +176,7 @@ def main():
               print("Error: Invalid command.", flush = True)
             continue
           
-          response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, dir=dir, symbol=symbol, price=price, size=size))
+          response = stub.ServerResponse(pb2.Order(opcode=opcode, username=username, password=password, symbol=symbol, dir=dir, price=price, size=size))
           print_response(response.response)
           
       # Exception for if the previous leader server went down and a new leader was determined.
@@ -193,7 +196,7 @@ def main():
       # Exception for if the user does a keyboard interrupt.
       except KeyboardInterrupt:
           try:
-            response = stub.ServerResponse(pb2.Order(opcode="except", username=username, password="", dir="", symbol="", price=-1, size=-1))
+            response = stub.ServerResponse(pb2.Order(opcode="except", username=username, password="", symbol="", dir="", price=-1, size=-1))
             print_response(response.response)
           except grpc._channel._InactiveRpcError:
               pass
