@@ -20,10 +20,10 @@ message Order {
   string opcode = 1;
   string username = 2;
   string password = 3;
-  string dir = 4;
-  string symbol = 5;
-  int32 price = 6;
-  float size = 7;
+  string symbol = 4;
+  string dir = 5;
+  float price = 6;
+  int32 size = 7;
 }
 
 // The current message queue and the list of users
