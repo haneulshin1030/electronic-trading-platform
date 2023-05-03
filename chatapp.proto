@@ -49,7 +49,8 @@ message HeartbeatResponse {
 }
 
 message Response {
-  string response = 1;
+  string response = 1; 
+  ServerData data = 2; 
 }
 
 message Username {

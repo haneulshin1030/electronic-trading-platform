@@ -166,6 +166,7 @@ def match_trade(
     # If the user is the counterparty who posted the trade (maker)
     if order_was_taken:
         messages[username].append(trade_message(username, dir, symbol, price, size))
+        print("Messages[username]:", messages)
         # Update open orders
 
         # If total quantity at the price with the counterparty was taken
@@ -492,7 +493,15 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     if response:
         print(f'Sending response to server: "{response}" \n')
-        return pb2.Response(response=response)
+        data = pb2.ServerData(
+                open_orders=open_orders,
+                order_book=order_book,
+                user_status=user_status,
+                passwords=passwords,
+                positions=positions,
+                messages=messages,
+            )
+        return pb2.Response(response=response, data=data)
 
 
 def send_heartbeat(stub, id):

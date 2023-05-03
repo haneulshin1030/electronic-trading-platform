@@ -18,186 +18,206 @@ PORT = 8000
 # Record mapping index -> replica.
 server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 
+# Global variable to store CustomerClient object
+customer_client = None
+
 
 # GUI for customer client
 class CustomerClient(tk.Frame):
-  def __init__(self, username, password, stub):
-    self.username = username
-    self.password = password
-    self.stub = stub
+    def __init__(self, username, password, stub):
+        self.username = username
+        self.password = password
+        self.stub = stub
 
-    # Create root window: Customer Client inputs
-    self.root = tk.Tk()
-    self.root.title('Customer Client')
-    self.root.geometry('400x250')
+        # Create root window: Customer Client inputs
+        self.root = tk.Tk()
+        self.root.title('Customer Client')
+        self.root.geometry('400x250')
 
-    tk.Label(self.root, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
-    self.symbol_input = tk.Entry(self.root)
-    self.symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
-    
-    tk.Label(self.root, text="Transaction Type:").grid(row=1, column=0, padx=5, pady=5, sticky="W")
-    self.transaction_type = tk.StringVar(value="BUY")
-    self.transaction_type_select = tk.OptionMenu(self.root, self.transaction_type, "BUY", "SELL")
-    self.transaction_type_select.grid(row=1, column=1, padx=5, pady=5, sticky="W")
-    
-    tk.Label(self.root, text="Price:").grid(row=2, column=0, padx=5, pady=5, sticky="W")
-    self.price_input = tk.Entry(self.root)
-    self.price_input.grid(row=2, column=1, padx=5, pady=5, sticky="W")
-    
-    tk.Label(self.root, text="Quantity:").grid(row=3, column=0, padx=5, pady=5, sticky="W")
-    self.quantity_input = tk.Entry(self.root)
-    self.quantity_input.grid(row=3, column=1, padx=5, pady=5, sticky="W")
-    
-    self.positions_button = tk.Button(self.root, text="Post Order ->", command=self.post_order)
-    self.positions_button.grid(row=4, column=1, padx=5, pady=5, sticky="SE")
-
-
-    # Create second window: Message Log
-    self.window2 = tk.Toplevel(self.root)
-    self.window2.title('Notification Log')
-    self.window2.geometry('400x200+0+350')
-    self.window2_rows = 0
-    
-    # Add scrollbar for Message Log
-    scrollbar = tk.Scrollbar(self.window2)
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    self.text_widget = tk.Text(self.window2, yscrollcommand=scrollbar.set)
-    self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    scrollbar.config(command=self.text_widget.yview)
-    # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
-
-    # Create third window: Open Orders Table
-    self.window3 = tk.Toplevel(self.root)
-    self.window3.title('Open Orders')
-    self.window3.geometry('400x200+0+650')
-    self.window3_rows = 3
-
-    tk.Label(self.window3, text="").grid(row=0, columnspan=7)
-    ttk.Separator(self.window3, orient="horizontal").grid(row=1, column=0, columnspan=7, sticky="ew")
-    ttk.Separator(self.window3, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-    tk.Label(self.window3, text="Stock").grid(row=2, column=1, sticky="W")
-    ttk.Separator(self.window3, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-    tk.Label(self.window3, text="Price").grid(row=2, column=3, sticky="W")
-    ttk.Separator(self.window3, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-    tk.Label(self.window3, text="Quantity").grid(row=2, column=5, sticky="W")
-    ttk.Separator(self.window3, orient="vertical").grid(row=2, column=6, rowspan=1, sticky="ns")
-    ttk.Separator(self.window3, orient="horizontal").grid(row=3, column=0, columnspan=7, sticky="ew")
-
-    # HARDCODE TEST
-    # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-    # tk.Label(self.window3, text="AAPL").grid(row=4, column=1, sticky="W")
-    # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-    # tk.Label(self.window3, text="$40.62").grid(row=4, column=3, sticky="W")
-    # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-    # tk.Label(self.window3, text="50").grid(row=4, column=5, sticky="W")
-    # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=6, rowspan=1, sticky="ns")
-    # ttk.Separator(self.window3, orient="horizontal").grid(row=5, column=0, columnspan=7, sticky="ew")
+        tk.Label(self.root, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
+        self.symbol_input = tk.Entry(self.root)
+        self.symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
+        
+        tk.Label(self.root, text="Transaction Type:").grid(row=1, column=0, padx=5, pady=5, sticky="W")
+        self.transaction_type = tk.StringVar(value="BUY")
+        self.transaction_type_select = tk.OptionMenu(self.root, self.transaction_type, "BUY", "SELL")
+        self.transaction_type_select.grid(row=1, column=1, padx=5, pady=5, sticky="W")
+        
+        tk.Label(self.root, text="Price:").grid(row=2, column=0, padx=5, pady=5, sticky="W")
+        self.price_input = tk.Entry(self.root)
+        self.price_input.grid(row=2, column=1, padx=5, pady=5, sticky="W")
+        
+        tk.Label(self.root, text="Quantity:").grid(row=3, column=0, padx=5, pady=5, sticky="W")
+        self.quantity_input = tk.Entry(self.root)
+        self.quantity_input.grid(row=3, column=1, padx=5, pady=5, sticky="W")
+        
+        self.positions_button = tk.Button(self.root, text="Post Order ->", command=self.post_order)
+        self.positions_button.grid(row=4, column=1, padx=5, pady=5, sticky="SE")
 
 
-    # Create fourth window: Positions Table
-    self.window4 = tk.Toplevel(self.root)
-    self.window4.title('Positions Table')
-    self.window4.geometry('400x200+500+0')
+        # Create second window: Message Log
+        self.window2 = tk.Toplevel(self.root)
+        self.window2.title('Notification Log')
+        self.window2.geometry('400x200+0+350')
+        
+        # Add scrollbar for Message Log
+        scrollbar = tk.Scrollbar(self.window2)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_widget = tk.Text(self.window2, yscrollcommand=scrollbar.set)
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.text_widget.yview)
+        # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
 
-    tk.Label(self.window4, text="").grid(row=0, columnspan=5)
-    ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
-    ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-    tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
-    ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-    tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
-    ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-    ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
+        # Create third window: Open Orders Table
+        self.window3 = tk.Toplevel(self.root)
+        self.window3.title('Open Orders')
+        self.window3.geometry('400x200+0+650')
+        self.window3_rows = 3
 
-    # HARDCODE TEST
-    ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-    tk.Label(self.window4, text="AAPL").grid(row=4, column=1, sticky="W")
-    ttk.Separator(self.window4, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-    tk.Label(self.window4, text="50").grid(row=4, column=3, sticky="W")
-    ttk.Separator(self.window4, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-    ttk.Separator(self.window4, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
+        tk.Label(self.window3, text="").grid(row=0, columnspan=7)
+        ttk.Separator(self.window3, orient="horizontal").grid(row=1, column=0, columnspan=7, sticky="ew")
+        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
+        tk.Label(self.window3, text="Stock").grid(row=2, column=1, sticky="W")
+        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.window3, text="Price").grid(row=2, column=3, sticky="W")
+        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
+        tk.Label(self.window3, text="Quantity").grid(row=2, column=5, sticky="W")
+        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=6, rowspan=1, sticky="ns")
+        ttk.Separator(self.window3, orient="horizontal").grid(row=3, column=0, columnspan=7, sticky="ew")
 
-
-    # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
-    self.window5 = tk.Toplevel(self.root)
-    self.window5.title('Stock Lookup')
-    self.window5.geometry('350x100+500+300')
-
-    tk.Label(self.window5, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
-    self.lookup_symbol_input = tk.Entry(self.window5)
-    self.lookup_symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
-
-    self.show_orderbook_button = tk.Button(self.window5, text="Open Orderbook ->", command=self.open_orderbook)
-    self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
-
-    # Start the mainloop
-    self.root.mainloop()
+        # HARDCODE TEST
+        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="AAPL").grid(row=4, column=1, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="$40.62").grid(row=4, column=3, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="50").grid(row=4, column=5, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=6, rowspan=1, sticky="ns")
+        # ttk.Separator(self.window3, orient="horizontal").grid(row=5, column=0, columnspan=7, sticky="ew")
 
 
-  def open_orderbook(self):
-    stock_symbol = self.lookup_symbol_input.get()
-    print(stock_symbol)
-    self.orderbook_window = tk.Toplevel(self.root)
-    title = 'Order Book: ' + stock_symbol
-    self.orderbook_window.title(title)
-    self.orderbook_window.geometry('350x200+500+500')
+        # Create fourth window: Positions Table
+        self.window4 = tk.Toplevel(self.root)
+        self.window4.title('Positions Table')
+        self.window4.geometry('400x200+500+0')
 
-    # Create the table headers and lines
-    tk.Label(self.orderbook_window, text=stock_symbol).grid(row=0, columnspan=5)
-    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
-    tk.Label(self.orderbook_window, text="BUY").grid(row=2, column=0, columnspan=2)
-    tk.Label(self.orderbook_window, text="SELL").grid(row=2, column=3, columnspan=2)
-    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
-    
-    tk.Label(self.orderbook_window, text="Price").grid(row=4, column=0)
-    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=1, rowspan=1, sticky="ns")
-    tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=1)
-    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-    tk.Label(self.orderbook_window, text="Price").grid(row=4, column=3)
-    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-    tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=4)
-    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
+        tk.Label(self.window4, text="").grid(row=0, columnspan=5)
+        ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
+        ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
 
-    # TODO: Load in real-time data
+        # HARDCODE TEST
+        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="AAPL").grid(row=4, column=1, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="50").grid(row=4, column=3, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
+        ttk.Separator(self.window4, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
 
-  def post_order(self):
-    """
-    1. Frontend: client hits "Post Order->" button
-    2. Backend: order is added to 3 dictionaries: order_book, messages, positions
-    3. Frontend: render updated order book, message log, and positions table
-    """
-    # Grab values
-    # stock_symbol = self.symbol_input.get()
-    # transaction_type = self.transaction_type.get()
-    # price = self.price_input.get()
-    # quantity = self.quantity_input.get()
 
-    opcode = self.transaction_type.get().lower()
-    username = self.username
-    password = self.password
-    dir = opcode
-    symbol = self.symbol_input.get()
-    price = float(self.price_input.get())
-    size = int(self.quantity_input.get())
+        # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
+        self.window5 = tk.Toplevel(self.root)
+        self.window5.title('Stock Lookup')
+        self.window5.geometry('350x100+500+300')
 
-    response = self.stub.ServerResponse(
-        pb2.Order(
-            opcode=opcode,
-            username=username,
-            password=password,
-            symbol=symbol,
-            dir=dir,
-            price=price,
-            size=size,
+        tk.Label(self.window5, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
+        self.lookup_symbol_input = tk.Entry(self.window5)
+        self.lookup_symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
+
+        self.show_orderbook_button = tk.Button(self.window5, text="Open Orderbook ->", command=self.open_orderbook)
+        self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
+
+        # Start the mainloop
+        self.root.mainloop()
+
+
+    def open_orderbook(self):
+        stock_symbol = self.lookup_symbol_input.get()
+        # print(stock_symbol)
+        self.orderbook_window = tk.Toplevel(self.root)
+        title = 'Order Book: ' + stock_symbol
+        self.orderbook_window.title(title)
+        self.orderbook_window.geometry('350x200+500+500')
+        self.orderbook_buy_rows = 5
+        self.orderbook_sell_rows = 5
+
+        # Create the table headers and lines
+        tk.Label(self.orderbook_window, text=stock_symbol).grid(row=0, columnspan=5)
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
+        tk.Label(self.orderbook_window, text="BUY").grid(row=2, column=0, columnspan=2)
+        tk.Label(self.orderbook_window, text="SELL").grid(row=2, column=3, columnspan=2)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
+
+        tk.Label(self.orderbook_window, text="Price").grid(row=4, column=0)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=1, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=1)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Price").grid(row=4, column=3)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=4)
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
+
+        # TODO: Load in order_book to render real-time data
+        for price, orders in order_book[stock_symbol]['buy'].items():
+            for _, size in orders:
+                self.orderbook_buy_rows += 1
+                tk.Label(self, text=str(price)).grid(row=self.orderbook_buy_rows, column=0)
+                tk.Label(self, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                # tk.Label(self, text="$43.8").grid(row=6, column=3)
+                # tk.Label(self, text="20").grid(row=6, column=4)
+                ttk.Separator(self, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+
+        for price, orders in order_book[stock_symbol]['sell'].items():
+            for _, size in orders:
+                self.orderbook_sell_rows += 1
+                tk.Label(self, text=str(price)).grid(row=self.orderbook_sell_rows, column=3)
+                tk.Label(self, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+
+    def post_order(self):
+        """
+        1. Frontend: client hits "Post Order->" button
+        2. Backend: order is added to 3 dictionaries: order_book, messages, positions
+        3. Frontend: render updated order book, message log, and positions table
+        """
+        # Send params to backend
+        opcode = self.transaction_type.get().lower()
+        username = self.username
+        password = self.password
+        dir = opcode
+        symbol = self.symbol_input.get()
+        price = float(self.price_input.get())
+        size = int(self.quantity_input.get())
+
+        response = self.stub.ServerResponse(
+            pb2.Order(
+                opcode=opcode,
+                username=username,
+                password=password,
+                symbol=symbol,
+                dir=dir,
+                price=price,
+                size=size,
+            )
         )
-    )
-    print_response(response.response)
+        print_response(response.response)
 
-    # Real-time update message log
-    order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
-    # tk.Label(self.window2, text=order_message).grid(row=self.window2_rows+1)
-    self.text_widget.insert(tk.END, order_message)
-    self.window2_rows += 1
+        # Real-time update message log
+        # show_messages(self, messages)
+        order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
+        self.add_message(order_message)
+
+    def add_message(self,message):
+        self.text_widget.insert(tk.END, message)
+
+    # def show_messages(self, message_list):
+    #     for msg in message_list:
+    #         self.text_widget.insert(tk.END, msg)
 
 
 def listen(stub, username):
@@ -209,8 +229,10 @@ def listen(stub, username):
     try:
         while True:
             # When a new message is found, iterate to it and print it.
-            response = next(messages)
-            print(response.response)
+            output = next(messages)
+            print("RESPONSE:", output[0].response)
+            print("ORDER BOOK:", output[1].order_book)
+            print("POSITIONS:", output[1].positions)
     except:
         return
 
@@ -332,12 +354,14 @@ def main():
             username = None
 
     print_response(response.response)
+    print_response(response.data)
 
     listen_thread = threading.Thread(target=(listen), args=(stub, username))
     listen_thread.start()
 
     customer_client = CustomerClient(username, password, stub)
     
+    # This code is not used anymore now that UI has been added
     while True:
         try:
             while True:
