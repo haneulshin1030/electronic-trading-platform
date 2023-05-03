@@ -103,12 +103,12 @@ class CustomerClient(tk.Frame):
 
 
         # Create fourth window: Positions Table
-        self.window4 = tk.Toplevel(self.root)
-        self.window4.title('Positions Table')
-        self.window4.geometry('400x200+500+0')
+        # self.window4 = tk.Toplevel(self.root)
+        # self.window4.title('Positions Table')
+        # self.window4.geometry('400x200+500+0')
 
-        # self.init_positions()
-        self.last_modified_positions = -1
+        # # self.init_positions()
+        # self.last_modified_positions = -1
 
         # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
         self.window5 = tk.Toplevel(self.root)
@@ -243,6 +243,7 @@ class CustomerClient(tk.Frame):
             self.last_modified_order_book = self.current_modified_order_book
 
         # Update positions
+        """
         self.positions_file = 'positions.pickle'
         self.current_modified_positions = os.path.getmtime(self.positions_file)
 
@@ -269,6 +270,7 @@ class CustomerClient(tk.Frame):
                 self.positions_rows += 2
 
             self.last_modified_positions = self.current_modified_positions
+        """
 
         self.root.after(1000, self.update_everything)
 
