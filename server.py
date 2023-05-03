@@ -332,9 +332,9 @@ def post_message(username, dir, symbol, price, size):
     # Save dictionary data
     with open(symbol+'_order_book.pickle', 'wb') as file:
         pickle.dump(order_book, file)
-    with open(symbol+'_messages.pickle', 'wb') as file:
-        pickle.dump(messages, file)
-    with open(symbol+'_positions.pickle', 'wb') as file:
+    with open(username+'_messages.pickle', 'wb') as file:
+            pickle.dump(messages, file)
+    with open(username+'_positions.pickle', 'wb') as file:
         pickle.dump(positions, file)
 
     print("Order book:", order_book)
@@ -507,9 +507,9 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         # Save dictionary data
         with open(symbol+'_order_book.pickle', 'wb') as file:
             pickle.dump(order_book, file)
-        with open(symbol+'_messages.pickle', 'wb') as file:
+        with open(username+'_messages.pickle', 'wb') as file:
             pickle.dump(messages, file)
-        with open(symbol+'_positions.pickle', 'wb') as file:
+        with open(username+'_positions.pickle', 'wb') as file:
             pickle.dump(positions, file)
 
         print(f'Sending response to server: "{response}" \n')
