@@ -167,7 +167,7 @@ class CustomerClient(tk.Frame):
         # Show initial order_book
         with open("order_book.pickle", "rb") as f:
             order_book = pickle.load(f)
-        print(order_book)
+        # print(order_book)
         buy_orders = order_book[self.stock_symbol]['buy']
         sell_orders = order_book[self.stock_symbol]['sell']
         buy_count = 0
@@ -200,7 +200,7 @@ class CustomerClient(tk.Frame):
         if self.current_modified_order_book != self.last_modified_order_book:
             with open("order_book.pickle", "rb") as f:
                 order_book = pickle.load(f)
-            print(order_book)
+            # print(order_book)
 
             # Clear window
             if self.orderbook_window != -1:
