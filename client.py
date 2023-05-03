@@ -138,7 +138,7 @@ class CustomerClient(tk.Frame):
         self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
 
         # Start the mainloop
-        self.root.after(5000, self.update_orderbook)
+        self.root.after(5000, self.update_everything)
         self.root.mainloop()
 
     def init_orderbook(self):
@@ -177,25 +177,31 @@ class CustomerClient(tk.Frame):
         print(order_book)
         buy_orders = order_book[self.stock_symbol]['buy']
         sell_orders = order_book[self.stock_symbol]['sell']
+        buy_count = 0
+        sell_count = 0
         for price in sorted(buy_orders.keys(), reverse=True):
-            size = buy_orders[price]
-            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
-            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-            self.orderbook_buy_rows += 2
+            if buy_count < 10:
+                size = buy_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_buy_rows += 2
+                buy_count += 1
         for price in sorted(sell_orders.keys()):
-            size = sell_orders[price]
-            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
-            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
-            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-            self.orderbook_sell_rows += 2
+            if sell_count < 10:
+                size = sell_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_sell_rows += 2
+                sell_count += 1
 
         # initialize the last modification time
         self.last_modified_order_book = os.path.getmtime("order_book.pickle")
 
-    def update_orderbook(self):
+    def update_everything(self):
         self.current_modified_order_book = os.path.getmtime("order_book.pickle")
 
         if self.current_modified_order_book != self.last_modified_order_book:
@@ -213,28 +219,33 @@ class CustomerClient(tk.Frame):
             self.orderbook_buy_rows = 6
             self.orderbook_sell_rows = 6
 
-            # Sort order_book
-            # TODO: Show 10 rows max
+            # Sort order_book, show 10 rows max
             buy_orders = order_book[self.stock_symbol]['buy']
             sell_orders = order_book[self.stock_symbol]['sell']
+            buy_count = 0
+            sell_count = 0
             for price in sorted(buy_orders.keys(), reverse=True):
-                size = buy_orders[price]
-                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
-                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_buy_rows += 2
+                if buy_count < 10:
+                    size = buy_orders[price]
+                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                    self.orderbook_buy_rows += 2
+                    buy_count += 1
             for price in sorted(sell_orders.keys()):
-                size = sell_orders[price]
-                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
-                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_sell_rows += 2
+                if sell_count < 10:
+                    size = sell_orders[price]
+                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                    self.orderbook_sell_rows += 2
+                    sell_count += 1
 
             self.last_modified_order_book = self.current_modified_order_book
 
-        self.root.after(2000, self.update_orderbook)
+        self.root.after(2000, self.update_everything)
 
 
     def post_order(self):
