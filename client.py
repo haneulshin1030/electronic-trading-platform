@@ -20,6 +20,9 @@ PORT = 8000
 # Record mapping index -> replica.
 server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 
+# # Global variable to store CustomerClient object
+# customer_client = None
+
 
 # GUI for customer client
 class CustomerClient(tk.Frame):
@@ -29,9 +32,8 @@ class CustomerClient(tk.Frame):
         self.stub = stub
 
         self.last_modified_order_book = -1
-        self.stock_symbol = ""
-        self.order_book_file = "order_book.pickle"
         self.orderbook_window = -1
+        self.stock_symbol = ""
 
         # Create root window: Customer Client inputs
         self.root = tk.Tk()
@@ -105,17 +107,8 @@ class CustomerClient(tk.Frame):
         self.window4.title('Positions Table')
         self.window4.geometry('400x200+500+0')
 
-        self.init_positions()
+        # self.init_positions()
         self.last_modified_positions = -1
-
-        # HARDCODE TEST
-        # ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-        # tk.Label(self.window4, text="AAPL").grid(row=4, column=1, sticky="W")
-        # ttk.Separator(self.window4, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-        # tk.Label(self.window4, text="50").grid(row=4, column=3, sticky="W")
-        # ttk.Separator(self.window4, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-        # ttk.Separator(self.window4, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
-
 
         # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
         self.window5 = tk.Toplevel(self.root)
@@ -130,7 +123,7 @@ class CustomerClient(tk.Frame):
         self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
 
         # Start the mainloop
-        self.root.after(5000, self.update_everything)
+        self.root.after(10000, self.update_everything)
         self.root.mainloop()
 
     def init_positions(self):
@@ -175,36 +168,41 @@ class CustomerClient(tk.Frame):
         self.orderbook_sell_rows = 6
 
         # Show initial order_book
-        # self.order_book_file = self.stock_symbol + '_' + self.order_book_file
-        with open(self.order_book_file, "rb") as f:
+        with open("order_book.pickle", "rb") as f:
             order_book = pickle.load(f)
         print(order_book)
         buy_orders = order_book[self.stock_symbol]['buy']
         sell_orders = order_book[self.stock_symbol]['sell']
+        buy_count = 0
+        sell_count = 0
         for price in sorted(buy_orders.keys(), reverse=True):
-            size = buy_orders[price]
-            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
-            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-            self.orderbook_buy_rows += 2
+            if buy_count < 10:
+                size = buy_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_buy_rows += 2
+                buy_count += 1
         for price in sorted(sell_orders.keys()):
-            size = sell_orders[price]
-            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
-            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
-            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-            self.orderbook_sell_rows += 2
+            if sell_count < 10:
+                size = sell_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_sell_rows += 2
+                sell_count += 1
 
         # initialize the last modification time
-        self.last_modified_order_book = os.path.getmtime(self.order_book_file)
+        self.last_modified_order_book = os.path.getmtime("order_book.pickle")
 
     def update_everything(self):
         # Update order book
-        self.current_modified_order_book = os.path.getmtime(self.order_book_file)
+        self.current_modified_order_book = os.path.getmtime("order_book.pickle")
 
         if self.current_modified_order_book != self.last_modified_order_book:
-            with open(self.order_book_file, "rb") as f:
+            with open("order_book.pickle", "rb") as f:
                 order_book = pickle.load(f)
             print(order_book)
 
@@ -218,10 +216,10 @@ class CustomerClient(tk.Frame):
             self.orderbook_buy_rows = 6
             self.orderbook_sell_rows = 6
 
-            # Sort order_book
+            # Sort order_book, show 10 rows max
             buy_orders = order_book[self.stock_symbol]['buy']
-            buy_count = 0
             sell_orders = order_book[self.stock_symbol]['sell']
+            buy_count = 0
             sell_count = 0
             for price in sorted(buy_orders.keys(), reverse=True):
                 if buy_count < 10:
@@ -248,7 +246,7 @@ class CustomerClient(tk.Frame):
         self.positions_file = 'positions.pickle'
         self.current_modified_positions = os.path.getmtime(self.positions_file)
 
-        if self.current_modified_order_book != self.last_modified_order_book:
+        if self.current_modified_positions != self.last_modified_positions:
             with open(self.positions_file, "rb") as f:
                 positions = pickle.load(f)
             print(positions)
@@ -279,7 +277,7 @@ class CustomerClient(tk.Frame):
         """
         1. Frontend: client hits "Post Order->" button
         2. Backend: order is added to 3 dictionaries: order_book, messages, positions
-        3. Frontend: render updated message log
+        3. Frontend: render updated order book, message log, and positions table
         """
         # Send params to backend
         opcode = self.transaction_type.get().lower()
@@ -451,12 +449,12 @@ def main():
 
     print_response(response.response)
 
-    customer_client = CustomerClient(username, password, stub)
-
     listen_thread = threading.Thread(target=(listen), args=(stub, username))
     listen_thread.start()
 
-    # This code is not used for manual client now that UI has been added
+    customer_client = CustomerClient(username, password, stub)
+    
+    # This code is not used anymore now that UI has been added
     while True:
         try:
             while True:
