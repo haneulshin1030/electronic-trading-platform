@@ -140,6 +140,7 @@ def post_order(username, dir, symbol, sgn, price, size):
     if size == 0:
         return
 
+    price = round(price, 2)
     if price in open_orders[symbol][dir]:
         open_orders[symbol][dir][price].append([username, size])
         order_book[symbol][dir][price] += size
