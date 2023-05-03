@@ -1,10 +1,14 @@
 import grpc
 import threading
 import sys
+import os
 import numpy as np
-from time import time
+import pickle
+import time
 import random
 from _thread import *
+import tkinter as tk
+from tkinter import ttk
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
@@ -15,6 +19,217 @@ PORT = 8000
 
 # Record mapping index -> replica.
 server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
+
+
+# GUI for market maker client
+class MarketClient(tk.Frame):
+    def __init__(self, username, password, stub):
+        self.username = username
+        self.password = password
+        self.stub = stub
+
+        self.last_modified_order_book = -1
+        self.orderbook_window = -1
+        self.stock_symbol = ""
+
+        # Create root window: input
+        self.root = tk.Tk()
+        self.root.title('Market Client')
+        self.root.geometry('500x100+1000+0')
+
+        tk.Label(self.root, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
+        self.symbol_input = tk.Entry(self.root)
+        self.symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
+        
+        self.positions_button = tk.Button(self.root, text="Generate Automated Orders ->", command=self.post_order)
+        self.positions_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
+
+        # Create second window: Message Log
+        self.window2 = tk.Toplevel(self.root)
+        self.window2.title('Notification Log')
+        self.window2.geometry('500x500+1000+200')
+        
+        # Add scrollbar for Message Log
+        scrollbar = tk.Scrollbar(self.window2)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_widget = tk.Text(self.window2, yscrollcommand=scrollbar.set)
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.text_widget.yview)
+        # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
+
+        # Create window: Stock Symbol Lookup to open its corresponding orderbook
+        self.window5 = tk.Toplevel(self.root)
+        self.window5.title('Stock Lookup')
+        # self.window5.geometry('350x100+500+300')
+        self.window5.geometry('350x100+1500+0')
+
+        tk.Label(self.window5, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
+        self.lookup_symbol_input = tk.Entry(self.window5)
+        self.lookup_symbol_input.grid(row=0, column=1, padx=5, pady=5, sticky="W")
+
+        self.show_orderbook_button = tk.Button(self.window5, text="Open Orderbook ->", command=self.open_orderbook)
+        self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
+
+        # Start the mainloop
+        self.root.after(2000, self.update_everything)
+        self.root.mainloop()
+
+    def init_orderbook(self):
+        # Create the table headers and lines
+        tk.Label(self.orderbook_window, text=self.stock_symbol).grid(row=0, columnspan=5)
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
+        tk.Label(self.orderbook_window, text="BUY").grid(row=2, column=0, columnspan=2)
+        tk.Label(self.orderbook_window, text="SELL").grid(row=2, column=3, columnspan=2)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
+
+        tk.Label(self.orderbook_window, text="Price").grid(row=4, column=0)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=1, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=1)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Price").grid(row=4, column=3)
+        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
+        tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=4)
+        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
+
+    def open_orderbook(self):
+        self.stock_symbol = self.lookup_symbol_input.get()
+        # print(stock_symbol)
+        self.orderbook_window = tk.Toplevel(self.root)
+        title = 'Order Book: ' + self.stock_symbol
+        self.orderbook_window.title(title)
+        # self.orderbook_window.geometry('350x500+500+500')
+        self.orderbook_window.geometry('350x500+1500+200')
+
+        self.init_orderbook()
+        self.orderbook_buy_rows = 6
+        self.orderbook_sell_rows = 6
+
+        # Show initial order_book
+        with open("order_book.pickle", "rb") as f:
+            order_book = pickle.load(f)
+        print(order_book)
+        buy_orders = order_book[self.stock_symbol]['buy']
+        sell_orders = order_book[self.stock_symbol]['sell']
+        buy_count = 0
+        sell_count = 0
+        for price in sorted(buy_orders.keys(), reverse=True):
+            if buy_count < 10:
+                size = buy_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_buy_rows += 2
+                buy_count += 1
+        for price in sorted(sell_orders.keys()):
+            if sell_count < 10:
+                size = sell_orders[price]
+                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                self.orderbook_sell_rows += 2
+                sell_count += 1
+
+        # initialize the last modification time
+        self.last_modified_order_book = os.path.getmtime("order_book.pickle")
+
+    def update_everything(self):
+        self.current_modified_order_book = os.path.getmtime("order_book.pickle")
+
+        if self.current_modified_order_book != self.last_modified_order_book:
+            with open("order_book.pickle", "rb") as f:
+                order_book = pickle.load(f)
+            print(order_book)
+
+            # Clear window
+            if self.orderbook_window != -1:
+                for widget in self.orderbook_window.winfo_children():
+                    widget.destroy()
+
+            # Create the table headers and lines
+            self.init_orderbook()
+            self.orderbook_buy_rows = 6
+            self.orderbook_sell_rows = 6
+
+            # Sort order_book, show 10 rows max
+            buy_orders = order_book[self.stock_symbol]['buy']
+            sell_orders = order_book[self.stock_symbol]['sell']
+            buy_count = 0
+            sell_count = 0
+            for price in sorted(buy_orders.keys(), reverse=True):
+                if buy_count < 10:
+                    size = buy_orders[price]
+                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                    self.orderbook_buy_rows += 2
+                    buy_count += 1
+            for price in sorted(sell_orders.keys()):
+                if sell_count < 10:
+                    size = sell_orders[price]
+                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                    self.orderbook_sell_rows += 2
+                    sell_count += 1
+
+            self.last_modified_order_book = self.current_modified_order_book
+
+        self.root.after(2000, self.update_everything)
+
+
+    def post_order(self):
+        symbol = self.symbol_input.get()
+
+        # MM params
+        fades = {}
+        sizes = {}
+        fades['buy'] = [i + random.uniform(0, 0.02) for i in np.arange(0.05, 0.51, 0.05) ]
+        fades['sell'] = [i + random.uniform(0, 0.02) for i in np.arange(0.05, 0.51, 0.05) ]
+        sizes['buy'] = random.sample(range(50, 150), 10)
+        sizes['sell'] = random.sample(range(50, 150), 10)
+       
+        # Generate automated trades
+        if symbol == "AAPL":
+            fair = 169
+        elif symbol == "TSLA":
+            fair = 160
+            
+        while True:
+            for dir in ['buy', 'sell']:
+                for fade, size in zip(fades[dir], sizes[dir]):    
+                    price = round(fair + fade, 2)
+                    response = self.stub.ServerResponse(
+                        pb2.Order(
+                            opcode=dir,
+                            username=self.username,
+                            password=self.password,
+                            symbol=symbol,
+                            dir=dir,
+                            price=price,
+                            size=size,
+                        )
+                    )
+                    # Real-time update message log
+                    print_response(response.response)
+                    self.add_message(response.response + "\n")
+                    time.sleep(1)
+
+        # Real-time update message log
+        # order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
+        # self.add_message(order_message)
+
+        # if response.response[0] != 'P': # ensure no duplicate Posted messages in non-matched case
+        #     print_response(response.response)
+        #     self.add_message(response.response + "\n")
+
+    def add_message(self,message):
+        self.text_widget.insert(tk.END, message)
+
 
 
 def listen(stub, username):
@@ -153,6 +368,8 @@ def main():
     listen_thread = threading.Thread(target=(listen), args=(stub, username))
     listen_thread.start()
 
+    # market_client = MarketClient(username, password, stub)
+
     # MM params
     fades = {}
     sizes = {}
@@ -200,6 +417,7 @@ def main():
                             )
                         )
                         print_response(response.response)
+                        time.sleep(1)
                 
                 
                 # width = 0.50
@@ -224,7 +442,6 @@ def main():
                 #         print("Error: Invalid command.", flush=True)
                 #     continue
                 
-            sleep(0.5)
 
 
 
