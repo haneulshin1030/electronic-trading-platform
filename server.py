@@ -333,8 +333,6 @@ def post_message(username, dir, symbol, price, size):
     # Save dictionary data
     with open('order_book.pickle', 'wb') as file:
         pickle.dump(order_book[symbol], file)
-    with open('messages.pickle', 'wb') as file:
-        pickle.dump(messages[username], file)
     with open('positions.pickle', 'wb') as file:
         pickle.dump(positions[username], file)
 
@@ -508,8 +506,6 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         # Save dictionary data
         with open('order_book.pickle', 'wb') as file:
             pickle.dump(order_book[symbol], file)
-        with open('messages.pickle', 'wb') as file:
-            pickle.dump(messages[username], file)
         with open('positions.pickle', 'wb') as file:
             pickle.dump(positions[username], file)
 

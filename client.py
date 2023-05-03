@@ -299,19 +299,18 @@ class CustomerClient(tk.Frame):
                 size=size,
             )
         )
-        print_response(response.response)
 
         # Real-time update message log
-        # show_messages(self, messages)
         order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
         self.add_message(order_message)
 
+        if response.response[0] != 'P': # ensure no duplicate Posted messages in non-matched case
+            print_response(response.response)
+            self.add_message(response.response + "\n")
+   
     def add_message(self,message):
         self.text_widget.insert(tk.END, message)
 
-    # def show_messages(self, message_list):
-    #     for msg in message_list:
-    #         self.text_widget.insert(tk.END, msg)
 
 
 def listen(stub, username):
