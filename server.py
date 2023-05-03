@@ -163,6 +163,7 @@ def match_trade(
     # Update user information
     positions[username][symbol] += sgn * size
     positions[username]["USD"] += opp_sgn * size * price
+    print("POSITIONS:", positions)
     update_data()
 
     # If the user is the counterparty who posted the trade (maker)

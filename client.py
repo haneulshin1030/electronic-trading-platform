@@ -107,23 +107,8 @@ class CustomerClient(tk.Frame):
         self.window4.title('Positions Table')
         self.window4.geometry('400x200+500+0')
 
-        tk.Label(self.window4, text="").grid(row=0, columnspan=5)
-        ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-        ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
-
-        # HARDCODE TEST
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="AAPL").grid(row=4, column=1, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="50").grid(row=4, column=3, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-        ttk.Separator(self.window4, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
-
+        # self.init_positions()
+        self.last_modified_positions = -1
 
         # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
         self.window5 = tk.Toplevel(self.root)
@@ -138,8 +123,19 @@ class CustomerClient(tk.Frame):
         self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
 
         # Start the mainloop
-        self.root.after(5000, self.update_everything)
+        self.root.after(10000, self.update_everything)
         self.root.mainloop()
+
+    def init_positions(self):
+        # Create table headers and lines
+        tk.Label(self.window4, text="").grid(row=0, columnspan=5)
+        ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
+        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
+        ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
 
     def init_orderbook(self):
         # Create the table headers and lines
@@ -202,6 +198,7 @@ class CustomerClient(tk.Frame):
         self.last_modified_order_book = os.path.getmtime("order_book.pickle")
 
     def update_everything(self):
+        # Update order book
         self.current_modified_order_book = os.path.getmtime("order_book.pickle")
 
         if self.current_modified_order_book != self.last_modified_order_book:
@@ -245,7 +242,35 @@ class CustomerClient(tk.Frame):
 
             self.last_modified_order_book = self.current_modified_order_book
 
-        self.root.after(2000, self.update_everything)
+        # Update positions
+        self.positions_file = 'positions.pickle'
+        self.current_modified_positions = os.path.getmtime(self.positions_file)
+
+        if self.current_modified_positions != self.last_modified_positions:
+            with open(self.positions_file, "rb") as f:
+                positions = pickle.load(f)
+            print(positions)
+
+            # Clear window
+            for widget in self.window4.winfo_children():
+                widget.destroy()
+
+            # Create the table headers and lines
+            self.init_positions()
+            self.positions_rows = 4
+
+            for symbol, shares in positions[self.username].items():
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=0, rowspan=1, sticky="ns")
+                tk.Label(self.window4, text=symbol).grid(row=self.positions_rows, column=1, sticky="W")
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=2, rowspan=1, sticky="ns")
+                tk.Label(self.window4, text=shares).grid(row=self.positions_rows, column=3, sticky="W")
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=4, rowspan=1, sticky="ns")
+                ttk.Separator(self.window4, orient="horizontal").grid(row=self.positions_rows+1, column=0, columnspan=5, sticky="ew")
+                self.positions_rows += 2
+
+            self.last_modified_positions = self.current_modified_positions
+
+        self.root.after(1000, self.update_everything)
 
 
     def post_order(self):
