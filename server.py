@@ -330,12 +330,12 @@ def trade_message(username, dir, symbol, price, size):
 
 def post_message(username, dir, symbol, price, size):
     # Save dictionary data
-    with open(symbol+'_order_book.pickle', 'wb') as file:
-        pickle.dump(order_book, file)
-    with open(username+'_messages.pickle', 'wb') as file:
-            pickle.dump(messages, file)
-    with open(username+'_positions.pickle', 'wb') as file:
-        pickle.dump(positions, file)
+    with open('order_book.pickle', 'wb') as file:
+        pickle.dump(order_book[symbol], file)
+    with open('messages.pickle', 'wb') as file:
+        pickle.dump(messages[username], file)
+    with open('positions.pickle', 'wb') as file:
+        pickle.dump(positions[username], file)
 
     print("Order book:", order_book)
     
@@ -505,12 +505,12 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     if response:
         # Save dictionary data
-        with open(symbol+'_order_book.pickle', 'wb') as file:
-            pickle.dump(order_book, file)
-        with open(username+'_messages.pickle', 'wb') as file:
-            pickle.dump(messages, file)
-        with open(username+'_positions.pickle', 'wb') as file:
-            pickle.dump(positions, file)
+        with open('order_book.pickle', 'wb') as file:
+            pickle.dump(order_book[symbol], file)
+        with open('messages.pickle', 'wb') as file:
+            pickle.dump(messages[username], file)
+        with open('positions.pickle', 'wb') as file:
+            pickle.dump(positions[username], file)
 
         print(f'Sending response to server: "{response}" \n')
         return pb2.Response(response=response)

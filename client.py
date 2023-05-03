@@ -106,6 +106,7 @@ class CustomerClient(tk.Frame):
         self.window4.geometry('400x200+500+0')
 
         self.init_positions()
+        self.last_modified_positions = -1
 
         # HARDCODE TEST
         # ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
@@ -174,7 +175,7 @@ class CustomerClient(tk.Frame):
         self.orderbook_sell_rows = 6
 
         # Show initial order_book
-        self.order_book_file = self.stock_symbol + '_' + self.order_book_file
+        # self.order_book_file = self.stock_symbol + '_' + self.order_book_file
         with open(self.order_book_file, "rb") as f:
             order_book = pickle.load(f)
         print(order_book)
@@ -243,7 +244,33 @@ class CustomerClient(tk.Frame):
 
             self.last_modified_order_book = self.current_modified_order_book
 
-        # TODO: Update positions
+        # Update positions
+        self.positions_file = 'positions.pickle'
+        self.current_modified_positions = os.path.getmtime(self.positions_file)
+
+        if self.current_modified_order_book != self.last_modified_order_book:
+            with open(self.positions_file, "rb") as f:
+                positions = pickle.load(f)
+            print(positions)
+
+            # Clear window
+            for widget in self.window4.winfo_children():
+                widget.destroy()
+
+            # Create the table headers and lines
+            self.init_positions()
+            self.positions_rows = 4
+
+            for symbol, shares in positions[self.username].items():
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=0, rowspan=1, sticky="ns")
+                tk.Label(self.window4, text=symbol).grid(row=self.positions_rows, column=1, sticky="W")
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=2, rowspan=1, sticky="ns")
+                tk.Label(self.window4, text=shares).grid(row=self.positions_rows, column=3, sticky="W")
+                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=4, rowspan=1, sticky="ns")
+                ttk.Separator(self.window4, orient="horizontal").grid(row=self.positions_rows+1, column=0, columnspan=5, sticky="ew")
+                self.positions_rows += 2
+
+            self.last_modified_positions = self.current_modified_positions
 
         self.root.after(1000, self.update_everything)
 
@@ -252,7 +279,7 @@ class CustomerClient(tk.Frame):
         """
         1. Frontend: client hits "Post Order->" button
         2. Backend: order is added to 3 dictionaries: order_book, messages, positions
-        3. Frontend: render updated order book, message log, and positions table
+        3. Frontend: render updated message log
         """
         # Send params to backend
         opcode = self.transaction_type.get().lower()
