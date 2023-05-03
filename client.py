@@ -57,7 +57,14 @@ class CustomerClient(tk.Frame):
     self.window2.title('Notification Log')
     self.window2.geometry('400x200+0+350')
     self.window2_rows = 0
-    tk.Label(self.window2, text="").grid(row=0)
+    
+    # Add scrollbar for Message Log
+    scrollbar = tk.Scrollbar(self.window2)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    self.text_widget = tk.Text(self.window2, yscrollcommand=scrollbar.set)
+    self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.config(command=self.text_widget.yview)
+    # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
 
     # Create third window: Open Orders Table
     self.window3 = tk.Toplevel(self.root)
@@ -187,8 +194,9 @@ class CustomerClient(tk.Frame):
     print_response(response.response)
 
     # Real-time update message log
-    order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share."
-    tk.Label(self.window2, text=order_message).grid(row=self.window2_rows+1)
+    order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
+    # tk.Label(self.window2, text=order_message).grid(row=self.window2_rows+1)
+    self.text_widget.insert(tk.END, order_message)
     self.window2_rows += 1
 
 
