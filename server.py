@@ -7,6 +7,7 @@ import optparse
 import concurrent.futures
 import random
 import json
+import pickle
 import re
 
 import chatapp_pb2 as pb2
@@ -327,6 +328,16 @@ def trade_message(username, dir, symbol, price, size):
 
 
 def post_message(username, dir, symbol, price, size):
+    # Save dictionary data
+    with open('order_book.pickle', 'wb') as file:
+        pickle.dump(order_book, file)
+    with open('messages.pickle', 'wb') as file:
+        pickle.dump(messages, file)
+    with open('positions.pickle', 'wb') as file:
+        pickle.dump(positions, file)
+
+    print("Order book:", order_book)
+    
     preposition = "for" if dir == "buy" else "at"
     return f"Posted an order to {dir} {size} shares of {symbol} {preposition} ${price:.2f}/share."
 
@@ -492,16 +503,16 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
             response = ""
 
     if response:
+        # Save dictionary data
+        with open('order_book.pickle', 'wb') as file:
+            pickle.dump(order_book, file)
+        with open('messages.pickle', 'wb') as file:
+            pickle.dump(messages, file)
+        with open('positions.pickle', 'wb') as file:
+            pickle.dump(positions, file)
+
         print(f'Sending response to server: "{response}" \n')
-        data = pb2.ServerData(
-                open_orders=open_orders,
-                order_book=order_book,
-                user_status=user_status,
-                passwords=passwords,
-                positions=positions,
-                messages=messages,
-            )
-        return pb2.Response(response=response, data=data)
+        return pb2.Response(response=response)
 
 
 def send_heartbeat(stub, id):

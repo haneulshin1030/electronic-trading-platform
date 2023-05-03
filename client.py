@@ -2,6 +2,8 @@ import grpc
 import threading
 import sys
 import time
+import os
+import pickle
 from _thread import *
 
 import chatapp_pb2 as pb2
@@ -18,8 +20,8 @@ PORT = 8000
 # Record mapping index -> replica.
 server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 
-# Global variable to store CustomerClient object
-customer_client = None
+# # Global variable to store CustomerClient object
+# customer_client = None
 
 
 # GUI for customer client
@@ -69,21 +71,21 @@ class CustomerClient(tk.Frame):
         # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
 
         # Create third window: Open Orders Table
-        self.window3 = tk.Toplevel(self.root)
-        self.window3.title('Open Orders')
-        self.window3.geometry('400x200+0+650')
-        self.window3_rows = 3
+        # self.window3 = tk.Toplevel(self.root)
+        # self.window3.title('Open Orders')
+        # self.window3.geometry('400x200+0+650')
+        # self.window3_rows = 3
 
-        tk.Label(self.window3, text="").grid(row=0, columnspan=7)
-        ttk.Separator(self.window3, orient="horizontal").grid(row=1, column=0, columnspan=7, sticky="ew")
-        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-        tk.Label(self.window3, text="Stock").grid(row=2, column=1, sticky="W")
-        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-        tk.Label(self.window3, text="Price").grid(row=2, column=3, sticky="W")
-        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-        tk.Label(self.window3, text="Quantity").grid(row=2, column=5, sticky="W")
-        ttk.Separator(self.window3, orient="vertical").grid(row=2, column=6, rowspan=1, sticky="ns")
-        ttk.Separator(self.window3, orient="horizontal").grid(row=3, column=0, columnspan=7, sticky="ew")
+        # tk.Label(self.window3, text="").grid(row=0, columnspan=7)
+        # ttk.Separator(self.window3, orient="horizontal").grid(row=1, column=0, columnspan=7, sticky="ew")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="Stock").grid(row=2, column=1, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="Price").grid(row=2, column=3, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
+        # tk.Label(self.window3, text="Quantity").grid(row=2, column=5, sticky="W")
+        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=6, rowspan=1, sticky="ns")
+        # ttk.Separator(self.window3, orient="horizontal").grid(row=3, column=0, columnspan=7, sticky="ew")
 
         # HARDCODE TEST
         # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
@@ -142,8 +144,8 @@ class CustomerClient(tk.Frame):
         title = 'Order Book: ' + stock_symbol
         self.orderbook_window.title(title)
         self.orderbook_window.geometry('350x200+500+500')
-        self.orderbook_buy_rows = 5
-        self.orderbook_sell_rows = 5
+        self.orderbook_buy_rows = 6
+        self.orderbook_sell_rows = 6
 
         # Create the table headers and lines
         tk.Label(self.orderbook_window, text=stock_symbol).grid(row=0, columnspan=5)
@@ -162,22 +164,65 @@ class CustomerClient(tk.Frame):
         tk.Label(self.orderbook_window, text="Quantity").grid(row=4, column=4)
         ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
 
-        # TODO: Load in order_book to render real-time data
-        for price, orders in order_book[stock_symbol]['buy'].items():
-            for _, size in orders:
-                self.orderbook_buy_rows += 1
-                tk.Label(self, text=str(price)).grid(row=self.orderbook_buy_rows, column=0)
-                tk.Label(self, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-                # tk.Label(self, text="$43.8").grid(row=6, column=3)
-                # tk.Label(self, text="20").grid(row=6, column=4)
-                ttk.Separator(self, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+        # Load in order_book to render first data
+        with open('order_book.pickle', 'rb') as file:
+            order_book = pickle.load(file)
+        print("ORDER_BOOK:", order_book)
 
-        for price, orders in order_book[stock_symbol]['sell'].items():
-            for _, size in orders:
-                self.orderbook_sell_rows += 1
-                tk.Label(self, text=str(price)).grid(row=self.orderbook_sell_rows, column=3)
-                tk.Label(self, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+        # TODO: Sort order_book before showing top 10 rows
+        buy_orders = order_book[stock_symbol]['buy']
+        sell_orders = order_book[stock_symbol]['sell']
+        for price in sorted(buy_orders.keys(), reverse=True):
+            size = buy_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+            self.orderbook_buy_rows += 2
+        for price in sorted(sell_orders.keys()):
+            size = sell_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+            self.orderbook_sell_rows += 2
+
+        # order_book_file = "order_book.pickle"
+
+        # # initialize the last modification time
+        # last_modified = os.path.getmtime(order_book_file)
+
+        # # loop forever
+        # while True:
+        #     # get the current modification time
+        #     current_modified = os.path.getmtime(order_book_file)
+
+        #     # if it has changed, reload the file and print the order_book
+        #     if current_modified != last_modified:
+        #         with open(order_book_file, "rb") as f:
+        #             order_book = pickle.load(f)
+        #         print(order_book)
+
+        #         # update the last modification time
+        #         last_modified = current_modified
+
+        #         # TODO: Sort order_book before showing top 10 rows
+        #         for price, orders in order_book[stock_symbol]['buy'].items():
+        #             for _, size in orders:
+        #                 self.orderbook_buy_rows += 1
+        #                 tk.Label(self, text=str(price)).grid(row=self.orderbook_buy_rows, column=0)
+        #                 tk.Label(self, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+        #                 # tk.Label(self, text="$43.8").grid(row=6, column=3)
+        #                 # tk.Label(self, text="20").grid(row=6, column=4)
+        #                 ttk.Separator(self, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+        #                 ttk.Separator(self, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+
+        #         for price, orders in order_book[stock_symbol]['sell'].items():
+        #             for _, size in orders:
+        #                 self.orderbook_sell_rows += 1
+        #                 tk.Label(self, text=str(price)).grid(row=self.orderbook_sell_rows, column=3)
+        #                 tk.Label(self, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+
+        #     # wait for 1 second before checking again
+        #     time.sleep(1)
 
     def post_order(self):
         """
@@ -354,7 +399,6 @@ def main():
             username = None
 
     print_response(response.response)
-    print_response(response.data)
 
     listen_thread = threading.Thread(target=(listen), args=(stub, username))
     listen_thread.start()
