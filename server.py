@@ -140,6 +140,7 @@ def post_order(username, dir, symbol, sgn, price, size):
     if size == 0:
         return
 
+    price = round(price, 2)
     if price in open_orders[symbol][dir]:
         open_orders[symbol][dir][price].append([username, size])
         order_book[symbol][dir][price] += size
@@ -329,11 +330,11 @@ def trade_message(username, dir, symbol, price, size):
 
 def post_message(username, dir, symbol, price, size):
     # Save dictionary data
-    with open('order_book.pickle', 'wb') as file:
+    with open(symbol+'_order_book.pickle', 'wb') as file:
         pickle.dump(order_book, file)
-    with open('messages.pickle', 'wb') as file:
+    with open(symbol+'_messages.pickle', 'wb') as file:
         pickle.dump(messages, file)
-    with open('positions.pickle', 'wb') as file:
+    with open(symbol+'_positions.pickle', 'wb') as file:
         pickle.dump(positions, file)
 
     print("Order book:", order_book)
@@ -504,11 +505,11 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     if response:
         # Save dictionary data
-        with open('order_book.pickle', 'wb') as file:
+        with open(symbol+'_order_book.pickle', 'wb') as file:
             pickle.dump(order_book, file)
-        with open('messages.pickle', 'wb') as file:
+        with open(symbol+'_messages.pickle', 'wb') as file:
             pickle.dump(messages, file)
-        with open('positions.pickle', 'wb') as file:
+        with open(symbol+'_positions.pickle', 'wb') as file:
             pickle.dump(positions, file)
 
         print(f'Sending response to server: "{response}" \n')
