@@ -103,32 +103,24 @@ class CustomerClient(tk.Frame):
 
 
         # Create fourth window: Positions Table
-        self.window4 = tk.Toplevel(self.root)
-        self.window4.title('Positions Table')
-        self.window4.geometry('400x200+500+0')
+        # self.window4 = tk.Toplevel(self.root)
+        # self.window4.title('Positions Table')
+        # self.window4.geometry('400x200+500+0')
 
-        tk.Label(self.window4, text="").grid(row=0, columnspan=5)
-        ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-        ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
-
-        # HARDCODE TEST
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="AAPL").grid(row=4, column=1, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-        tk.Label(self.window4, text="50").grid(row=4, column=3, sticky="W")
-        ttk.Separator(self.window4, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-        ttk.Separator(self.window4, orient="horizontal").grid(row=5, column=0, columnspan=5, sticky="ew")
-
+        # tk.Label(self.window4, text="").grid(row=0, columnspan=5)
+        # ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
+        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
+        # tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
+        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
+        # tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
+        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
+        # ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
 
         # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
         self.window5 = tk.Toplevel(self.root)
         self.window5.title('Stock Lookup')
-        self.window5.geometry('350x100+500+300')
+        # self.window5.geometry('350x100+500+300')
+        self.window5.geometry('350x100+500+0')
 
         tk.Label(self.window5, text="Stock Symbol:").grid(row=0, column=0, padx=5, pady=5, sticky="W")
         self.lookup_symbol_input = tk.Entry(self.window5)
@@ -165,7 +157,8 @@ class CustomerClient(tk.Frame):
         self.orderbook_window = tk.Toplevel(self.root)
         title = 'Order Book: ' + self.stock_symbol
         self.orderbook_window.title(title)
-        self.orderbook_window.geometry('350x500+500+500')
+        # self.orderbook_window.geometry('350x500+500+500')
+        self.orderbook_window.geometry('350x500+500+200')
 
         self.init_orderbook()
         self.orderbook_buy_rows = 6
@@ -274,19 +267,18 @@ class CustomerClient(tk.Frame):
                 size=size,
             )
         )
-        print_response(response.response)
+       
 
         # Real-time update message log
-        # show_messages(self, messages)
         order_message = "Posted an order to " + opcode + " " + str(size) + " shares of " + symbol + " for $" + str(price) +"/share.\n"
         self.add_message(order_message)
 
+        if response.response[0] != 'P': # ensure no duplicate Posted messages in non-matched case
+            print_response(response.response)
+            self.add_message(response.response + "\n")
+
     def add_message(self,message):
         self.text_widget.insert(tk.END, message)
-
-    # def show_messages(self, message_list):
-    #     for msg in message_list:
-    #         self.text_widget.insert(tk.END, msg)
 
 
 def listen(stub, username):
