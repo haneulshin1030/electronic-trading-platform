@@ -32,6 +32,7 @@ class CustomerClient(tk.Frame):
         self.stub = stub
 
         self.last_modified_order_book = -1
+        self.orderbook_window = -1
         self.stock_symbol = ""
 
         # Create root window: Customer Client inputs
@@ -164,7 +165,7 @@ class CustomerClient(tk.Frame):
         self.orderbook_window = tk.Toplevel(self.root)
         title = 'Order Book: ' + self.stock_symbol
         self.orderbook_window.title(title)
-        self.orderbook_window.geometry('350x200+500+500')
+        self.orderbook_window.geometry('350x500+500+500')
 
         self.init_orderbook()
         self.orderbook_buy_rows = 6
@@ -203,8 +204,9 @@ class CustomerClient(tk.Frame):
             print(order_book)
 
             # Clear window
-            for widget in self.orderbook_window.winfo_children():
-                widget.destroy()
+            if self.orderbook_window != -1:
+                for widget in self.orderbook_window.winfo_children():
+                    widget.destroy()
 
             # Create the table headers and lines
             self.init_orderbook()
