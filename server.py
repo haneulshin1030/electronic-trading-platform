@@ -51,11 +51,13 @@ dir_list = ["buy", "sell"]
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
 # Where the bid and offer dictionaries map price -> [[user_1, quantity_1], ..., [user_n, quantity_n]]
 # sorted by time priority, such that if i < j, user i has time priority over user j
-open_orders = {symbol: {"buy": {}, "sell": {}} for symbol in symbol_list}
+open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
+               for symbol in symbol_list}
 
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
 # Where the bid and offer dictionaries map price -> total quantity
-order_book = {symbol: {"buy": {}, "sell": {}} for symbol in symbol_list}
+order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
+              for symbol in symbol_list}
 
 
 ########## USER INFORMATION ##########
@@ -178,7 +180,8 @@ def match_trade(
         else:
             open_orders[symbol][dir][price].pop(0)
             if len(open_orders[symbol][dir][price]) == 0:
-                open_orders[symbol][dir].pop(price)
+#                 open_orders[symbol][dir].pop(price)
+                del open_orders[symbol][dir][price]
 
         # Update order book
 
@@ -186,7 +189,8 @@ def match_trade(
         if size < order_book[symbol][dir][price]:
             order_book[symbol][dir][price] -= size
         else:
-            order_book[symbol][dir].pop(price)
+#             order_book[symbol][dir].pop(price)
+            del order_book[symbol][dir][price]
 
         update_data()
 
