@@ -22,6 +22,9 @@ More details about the design decisions we made can be found in [notebook.md](no
 Install all necessary libraries using this command:
 ```pip3 install -r requirements.txt```
 
+Install the sortedcontainers class.
+```python3 -m pip install sortedcontainers```
+
 To compile the .proto file and generate the stubs, execute this command:
 ```python3 -m grpc_tools.protoc --proto_path=. ./chatapp.proto --python_out=. --grpc_python_out=. ```
 
