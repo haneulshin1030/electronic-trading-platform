@@ -4,7 +4,7 @@ import pathlib
 from sortedcontainers import SortedDict
 
 import server
-from server import create_account, valid_password, login, post_order
+from server import create_account, valid_password, login, post_order, handle_server_response
 import client
 
 
@@ -44,6 +44,10 @@ class UnitTests(unittest.TestCase):
     self.assertEqual(valid_password("passw0RD"), False)
 
   def test_post_order(self):
+    # Reset
+    server.order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
+    server.open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
+
     init_positions = server.positions
     post_order("user1", "buy", "AAPL", -1, 170, 100)
     post_order("user1", "buy", "AAPL", -1, 171, 150)
@@ -64,6 +68,24 @@ class UnitTests(unittest.TestCase):
 
     # Check that positions are NOT updated
     self.assertEqual(init_positions, server.positions)
+
+  def test_match_trade(self):
+    # Reset params
+    server.leader = 0
+    server.order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
+    server.open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
+
+    # User A: BUY, AAPL, $170, 100 shares -> no trade
+    handle_server_response('buy', 'user1', 'P@33word', 'buy', 'AAPL', 170, 100)
+    self.assertEqual(server.order_book['AAPL']['buy'], SortedDict({170: 100}))
+
+    # User B: SELL, AAPL, $175, 50 shares -> no trade
+    handle_server_response('sell', 'user2', 'pa$$w0rD', 'sell', 'AAPL', 175, 50)
+    self.assertEqual(server.order_book['AAPL']['sell'], SortedDict({175: 50}))
+
+    # User A: BUY, AAPL, $176, 120 -> TRADE happens
+    handle_server_response('buy', 'user1', 'P@33word', 'buy', 'AAPL', 176, 20)
+    self.assertEqual(server.order_book['AAPL']['sell'], SortedDict({175: 30}))
 
   # Tests start_heartbeat and send_heartbeat processes
   @patch('server.start_heartbeat')
