@@ -6,7 +6,6 @@ import os
 import pickle
 import shutil
 from _thread import *
-from utils import is_valid_pickle_file
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
