@@ -249,7 +249,7 @@ class CustomerClient(tk.Frame):
 
                     self.last_modified_order_book = self.current_modified_order_book
             except EOFError:
-                print("Warning: collision of file processing")
+                pass
 
         # Update positions
         """
@@ -281,7 +281,7 @@ class CustomerClient(tk.Frame):
             self.last_modified_positions = self.current_modified_positions
         """
 
-        self.root.after(500, self.update_everything)
+        self.root.after(100, self.update_everything)
 
 
     def post_order(self):
