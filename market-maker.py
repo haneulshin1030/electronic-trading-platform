@@ -198,14 +198,17 @@ class MarketClient(tk.Frame):
             fair = 169
         elif symbol == "TSLA":
             fair = 160
-            
+  
+        num_trades = 2 * len(fades)
+
         while True:
             for dir in ['buy', 'sell']:
-                for fade, size in zip(fades[dir], sizes[dir]):    
+                for fade, size in zip(fades[dir], sizes[dir]): 
+                    num_trade += 1
                     price = round(fair + fade, 2)
                     response = self.stub.ServerResponse(
                         pb2.Order(
-                            opcode=dir,
+                            opcode="mm_update" if num_trade == num_trades else "mm",
                             username=self.username,
                             password=self.password,
                             symbol=symbol,
