@@ -7,8 +7,9 @@ import optparse
 import concurrent.futures
 import random
 import json
-import pickle
 import re
+import pickle
+from sortedcontainers import SortedDict
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
@@ -51,11 +52,14 @@ dir_list = ["buy", "sell"]
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
 # Where the bid and offer dictionaries map price -> [[user_1, quantity_1], ..., [user_n, quantity_n]]
 # sorted by time priority, such that if i < j, user i has time priority over user j
-open_orders = {symbol: {"buy": {}, "sell": {}} for symbol in symbol_list}
+# open_orders = {symbol: {"buy": {}, "sell": {}} for symbol in symbol_list}
+open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
+               for symbol in symbol_list}
 
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
 # Where the bid and offer dictionaries map price -> total quantity
-order_book = {symbol: {"buy": {}, "sell": {}} for symbol in symbol_list}
+order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
+              for symbol in symbol_list}
 
 
 ########## USER INFORMATION ##########
@@ -152,6 +156,15 @@ def post_order(username, dir, symbol, sgn, price, size):
     return
 
 
+def update_positions(username, symbol, sgn, opp_sgn, price, size):
+    global positions
+
+    print(f"Updating {username}'s position in {symbol} by {sgn} * {size}...")
+    positions[username][symbol] += sgn * size
+    positions[username]["USD"] += opp_sgn * size * price
+    return
+
+
 def match_trade(
     username, dir, symbol, sgn, opp_sgn, price, size, order_was_taken=False
 ):
@@ -159,16 +172,16 @@ def match_trade(
 
     if order_was_taken:
         print(f"Order book before match: \n {order_book[symbol]}\n")
+        print(f"User positions before match: \n {positions[username]}")
 
     # Update user information
-    positions[username][symbol] += sgn * size
-    positions[username]["USD"] += opp_sgn * size * price
+    update_positions(username, symbol, sgn, opp_sgn, price, size)
     update_data()
 
     # If the user is the counterparty who posted the trade (maker)
     if order_was_taken:
-        messages[username].append(trade_message(username, dir, symbol, price, size))
-        print("Messages[username]:", messages)
+        messages[username].append(trade_message(
+            username, dir, symbol, price, size))
         # Update open orders
 
         # If total quantity at the price with the counterparty was taken
@@ -177,7 +190,8 @@ def match_trade(
         else:
             open_orders[symbol][dir][price].pop(0)
             if len(open_orders[symbol][dir][price]) == 0:
-                open_orders[symbol][dir].pop(price)
+                # open_orders[symbol][dir].pop(price)
+                del open_orders[symbol][dir][price]
 
         # Update order book
 
@@ -185,12 +199,15 @@ def match_trade(
         if size < order_book[symbol][dir][price]:
             order_book[symbol][dir][price] -= size
         else:
-            order_book[symbol][dir].pop(price)
+            # order_book[symbol][dir].pop(price)
+            del order_book[symbol][dir][price]
 
         update_data()
 
     if order_was_taken:
         print(f"Order book after match: \n {order_book[symbol]}\n")
+        print(f"User positions after match: \n {positions[username]}")
+
     return trade_message(username, dir, symbol, price, size)
 
 
@@ -311,14 +328,28 @@ def create_account(username, password):
 
     user_status[username] = True
     passwords[username] = password
-    positions[username] = zero_positions
+    positions[username] = zero_positions.copy()
     messages[username] = []
     update_data()
     return "Success: Account " + username + " created and logged in."
 
 
 def valid_password(password):
-    return True
+    l, u, p, d = 0, 0, 0, 0
+    if len(password) < 8:
+        return False
+    for i in password:
+        if i.islower():
+            l += 1
+        if i.isupper():
+            u += 1
+        if i.isdigit():
+            d += 1
+        if i == '@' or i == '$' or i == '_':
+            p += 1
+    if l >= 1 and u >= 1 and p >= 1 and d >= 1 and l + p + u + d == len(password):
+        return True
+    return False
 
 
 def trade_message(username, dir, symbol, price, size):
@@ -329,16 +360,12 @@ def trade_message(username, dir, symbol, price, size):
 
 
 def post_message(username, dir, symbol, price, size):
-    # Save dictionary data
-    with open('order_book.pickle', 'wb') as file:
-        pickle.dump(order_book, file)
-    with open('messages.pickle', 'wb') as file:
-        pickle.dump(messages, file)
-    with open('positions.pickle', 'wb') as file:
+    # Save dictionary data	
+    with open('order_book.pickle', 'wb') as file:	
+        pickle.dump(order_book, file)	
+    with open('positions.pickle', 'wb') as file:	
         pickle.dump(positions, file)
 
-    print("Order book:", order_book)
-    
     preposition = "for" if dir == "buy" else "at"
     return f"Posted an order to {dir} {size} shares of {symbol} {preposition} ${price:.2f}/share."
 
@@ -396,7 +423,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
-    elif opcode == "buy" or opcode == "sell":
+    elif opcode == "buy" or opcode == "sell" or opcode == "mm" or opcode == "mm_update":
 
         preposition = None
 
@@ -471,13 +498,21 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         # Update user information
         if trade_size > 0:
             average_price = round(cumulative_price / trade_size, 2)
-            match_trade(username, dir, symbol, sgn, opp_sgn, average_price, trade_size)
-            response = trade_message(username, dir, symbol, average_price, trade_size)
+            print(
+                f"Matching {trade_size} shares at average price {average_price} with all counterparties..."
+            )
+            match_trade(username, dir, symbol, sgn,
+                        opp_sgn, average_price, trade_size)
+            response = trade_message(
+                username, dir, symbol, average_price, trade_size)
+
+            print(f"User positions after match: \n {positions[username]}")
         else:
             response = ""
 
         if trade_size < size:
-            print(f"Posting order for the remaining {size - trade_size} shares...")
+            print(
+                f"Posting order for the remaining {size - trade_size} shares...")
 
             # Update open orders and order book
             post_order(username, dir, symbol, sgn, price, size - trade_size)
@@ -492,8 +527,6 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
     # Exception
     elif opcode == "except":
         del messages[username]
-        del logged_in[username]
-        del user_list[username]
         return pb2.Response(response="")
 
     # Error checking for invalid opcode
@@ -504,12 +537,10 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
             response = ""
 
     if response:
-        # Save dictionary data
-        with open('order_book.pickle', 'wb') as file:
-            pickle.dump(order_book, file)
-        with open('messages.pickle', 'wb') as file:
-            pickle.dump(messages, file)
-        with open('positions.pickle', 'wb') as file:
+        # Save dictionary data	
+        with open('order_book.pickle', 'wb') as file:	
+            pickle.dump(order_book, file)	
+        with open('positions.pickle', 'wb') as file:	
             pickle.dump(positions, file)
 
         print(f'Sending response to server: "{response}" \n')
@@ -584,7 +615,8 @@ def start_server():
     # Start heartbeat of other servers.
     for i in range(3):
         if i != server_id:
-            heartbeat_thread = threading.Thread(target=start_heartbeat, args=(i,))
+            heartbeat_thread = threading.Thread(
+                target=start_heartbeat, args=(i,))
             heartbeat_thread.start()
             threads.append(heartbeat_thread)
 
