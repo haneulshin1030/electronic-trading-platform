@@ -318,7 +318,7 @@ def create_account(username, password):
 
     user_status[username] = True
     passwords[username] = password
-    positions[username] = zero_positions
+    positions[username] = zero_positions.copy()
     messages[username] = []
     update_data()
     return "Success: Account " + username + " created and logged in."
