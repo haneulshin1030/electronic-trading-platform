@@ -130,7 +130,7 @@ class CustomerClient(tk.Frame):
         self.show_orderbook_button.grid(row=2, column=1, padx=5, pady=5, sticky="SE")
 
         # Start the mainloop
-        self.root.after(10000, self.update_everything)
+        # self.root.after(10000, self.update_everything)
         self.root.mainloop()
 
     def init_positions(self):
@@ -207,6 +207,8 @@ class CustomerClient(tk.Frame):
 
         # initialize the last modification time
         self.last_modified_order_book = os.path.getmtime("order_book_dump.pickle")
+
+        self.root.after(100, self.update_everything)
 
     def update_everything(self):
         # Update order book
