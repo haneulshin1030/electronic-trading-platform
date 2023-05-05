@@ -208,7 +208,7 @@ class CustomerClient(tk.Frame):
         # initialize the last modification time
         self.last_modified_order_book = os.path.getmtime("order_book_dump.pickle")
 
-        self.root.after(100, self.update_everything)
+        self.root.after(10, self.update_everything)
 
     def update_everything(self):
         # Update order book
