@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pathlib
 
 import server
-from server import create_account, valid_password
+from server import create_account, valid_password, login
 import client
 
 
@@ -16,6 +16,12 @@ class UnitTests(unittest.TestCase):
     self.assertEqual(server.messages["user1"], [])
     self.assertEqual(server.passwords["user1"], "P@33word")
     self.assertEqual(server.user_status["user1"], True)
+
+  # Tests login
+  def test_login(self):
+    self.assertEqual(login("user1", "P@33word"), "Success: Account user1 logged in.")
+    self.assertEqual(login("user1", "password"), "Failure: Username and/or password is not valid.")
+    self.assertEqual(login("user2", "P@33word"), "Failure: Username and/or password is not valid.")
 
   # Tests password validity
   def test_valid_password(self):

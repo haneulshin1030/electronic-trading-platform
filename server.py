@@ -312,9 +312,15 @@ def login(username, password):
     Log the user in.
     """
     global user_status
-    user_status[username] = True
-    update_data()
-    return "Success: Account " + username + " logged in."
+
+    # Check whether user exists.
+    if username not in user_status or passwords[username] != password:
+        response = "Failure: Username and/or password is not valid."
+    else:
+        response = "Success: Account " + username + " logged in."
+        user_status[username] = True
+        update_data()
+    return response
 
 
 def create_account(username, password):
@@ -418,13 +424,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     # Log in.
     elif opcode == "login":
-        new_username = username
-
-        # Check whether user exists.
-        if username not in user_status or passwords[username] != password:
-            response = "Failure: Username and/or password is not valid."
-        else:
-            response = login(username, password)
+        response = login(username, password)
 
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
