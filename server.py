@@ -331,7 +331,14 @@ def create_account(username, password):
     update_data()
     return "Success: Account " + username + " created and logged in."
 
-
+"""
+Password criteria:
+- minumum of 8 characters
+- at least 1 uppercase letter
+- at least 1 lowercase letter
+- at least 1 numerical digit
+- at least and 1 character from _, @, or $
+"""
 def valid_password(password):
     l, u, p, d = 0, 0, 0, 0
     if len(password) < 8:
@@ -536,6 +543,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     if response:
         # Save dictionary data	
+        print("ORDER BOOK")
+        print(order_book)
         with open('order_book_dump.pickle', 'wb') as file:	
             pickle.dump(order_book, file)	
         with open('positions.pickle', 'wb') as file:	
