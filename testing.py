@@ -65,31 +65,29 @@ class UnitTests(unittest.TestCase):
     # Check that positions are NOT updated
     self.assertEqual(init_positions, server.positions)
 
-    
-  # # Tests start_heartbeat and send_heartbeat processes
-  # @patch('server.start_heartbeat')
-  # def test_start_heartbeat(self, mock_start_heartbeat):
-  #   server.start_heartbeat(0)
-  #   mock_start_heartbeat.assert_called()
+  # Tests start_heartbeat and send_heartbeat processes
+  @patch('server.start_heartbeat')
+  def test_start_heartbeat(self, mock_start_heartbeat):
+    server.start_heartbeat(0)
+    mock_start_heartbeat.assert_called()
   
-  # # Tests start_server process, check log files are created
-  # @patch('server.start_server')
-  # def test_start_server(self, mock_start_server):
-  #   server.start_server()
-  #   mock_start_server.assert_called()
+  # Tests start_server process, check pickle file logic
+  @patch('server.start_server')
+  def test_start_server(self, mock_start_server):
+    path = pathlib.Path('order_book.pickle')
+    self.assertFalse(path.is_file())
+    
+    server.start_server()
+    mock_start_server.assert_called()
 
-  #   path = pathlib.Path('0.csv')
-  #   self.assertTrue(path.is_file())
-  #   path = pathlib.Path('1.csv')
-  #   self.assertTrue(path.is_file())
-  #   path = pathlib.Path('2.csv')
-  #   self.assertTrue(path.is_file())
+    path = pathlib.Path('order_book_dump.pickle')
+    self.assertTrue(path.is_file())
 
-  # # Tests leader election process
-  # @patch('client.find_leader')
-  # def test_find_leader(self, mock_find_leader):
-  #   client.find_leader()
-  #   mock_find_leader.assert_called()
+  # Tests leader election process
+  @patch('client.find_leader')
+  def test_find_leader(self, mock_find_leader):
+    client.find_leader()
+    mock_find_leader.assert_called()
 
 if __name__ == '__main__':
   print("Unit tests running!")
