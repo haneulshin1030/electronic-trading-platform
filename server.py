@@ -401,7 +401,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
-    elif opcode == "buy" or opcode == "sell":
+    elif opcode == "buy" or opcode == "sell" or opcode == "mm" or opcode == "mm_update":
 
         preposition = None
 
