@@ -332,10 +332,8 @@ def listen(stub, username):
     try:
         while True:
             # When a new message is found, iterate to it and print it.
-            output = next(messages)
-            print("RESPONSE:", output[0].response)
-            print("ORDER BOOK:", output[1].order_book)
-            print("POSITIONS:", output[1].positions)
+            response = next(messages)	
+            print(response.response)
     except:
         return
 
