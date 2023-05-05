@@ -4,12 +4,13 @@ import sys
 import time
 import os
 import pickle
+import shutil
 from _thread import *
+from utils import is_valid_pickle_file
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
 
-# from frontend.customer_client import CustomerClient
 import tkinter as tk
 from tkinter import ttk
 
@@ -175,80 +176,81 @@ class CustomerClient(tk.Frame):
         self.orderbook_buy_rows = 6
         self.orderbook_sell_rows = 6
 
-        # Show initial order_book
-        with open("order_book.pickle", "rb") as f:
+        # duplicate order_book_dump into order_book_read
+        # this is to fix the pickle error of processing 1 file simultaneously
+        # from multiple parts of the code
+        shutil.copyfile("order_book_dump.pickle", "order_book_read.pickle")
+
+        # show initial order_book
+        with open('order_book_read.pickle', 'rb') as f:
             order_book = pickle.load(f)
         # print(order_book)
         buy_orders = order_book[self.stock_symbol]['buy']
         sell_orders = order_book[self.stock_symbol]['sell']
-        buy_count = 0
-        sell_count = 0
-        for price in sorted(buy_orders.keys(), reverse=True):
-            if buy_count < 10:
-                size = buy_orders[price]
-                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
-                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_buy_rows += 2
-                buy_count += 1
-        for price in sorted(sell_orders.keys()):
-            if sell_count < 10:
-                size = sell_orders[price]
-                tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
-                tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_sell_rows += 2
-                sell_count += 1
+
+        # add cheapest 10 buy orders
+        for price in reversed(list(buy_orders.keys())[-10:]):
+            size = buy_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+            self.orderbook_buy_rows += 2
+
+        # add most expensive 10 sell orders
+        for price in list(sell_orders.keys())[:10]:
+            size = sell_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+            tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+            ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+            ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+            self.orderbook_sell_rows += 2
 
         # initialize the last modification time
-        self.last_modified_order_book = os.path.getmtime("order_book.pickle")
+        self.last_modified_order_book = os.path.getmtime("order_book_dump.pickle")
 
     def update_everything(self):
         # Update order book
-        self.current_modified_order_book = os.path.getmtime("order_book.pickle")
+        self.current_modified_order_book = os.path.getmtime("order_book_dump.pickle")
 
         if self.current_modified_order_book != self.last_modified_order_book:
-            with open("order_book.pickle", "rb") as f:
-                order_book = pickle.load(f)
-            # print(order_book)
+            shutil.copyfile("order_book_dump.pickle", "order_book_read.pickle")
+            try:
+                with open("order_book_read.pickle", "rb") as f:
+                    order_book = pickle.load(f)
 
-            # Clear window
-            if self.orderbook_window != -1:
-                for widget in self.orderbook_window.winfo_children():
-                    widget.destroy()
+                    # Clear window
+                    if self.orderbook_window != -1:
+                        for widget in self.orderbook_window.winfo_children():
+                            widget.destroy()
 
-            # Create the table headers and lines
-            self.init_orderbook()
-            self.orderbook_buy_rows = 6
-            self.orderbook_sell_rows = 6
+                    # Create the table headers and lines
+                    self.init_orderbook()
+                    self.orderbook_buy_rows = 6
+                    self.orderbook_sell_rows = 6
+                    buy_orders = order_book[self.stock_symbol]['buy']
+                    sell_orders = order_book[self.stock_symbol]['sell']
 
-            # Sort order_book, show 10 rows max
-            buy_orders = order_book[self.stock_symbol]['buy']
-            sell_orders = order_book[self.stock_symbol]['sell']
-            buy_count = 0
-            sell_count = 0
-            for price in sorted(buy_orders.keys(), reverse=True):
-                if buy_count < 10:
-                    size = buy_orders[price]
-                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
-                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
-                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-                    self.orderbook_buy_rows += 2
-                    buy_count += 1
-            for price in sorted(sell_orders.keys()):
-                if sell_count < 10:
-                    size = sell_orders[price]
-                    tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
-                    tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
-                    ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-                    ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-                    self.orderbook_sell_rows += 2
-                    sell_count += 1
+                    # Sort order_book, show 10 rows max
+                    for price in reversed(list(buy_orders.keys())[-10:]):
+                        size = buy_orders[price]
+                        tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_buy_rows, column=0)
+                        tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_buy_rows, column=1)
+                        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+                        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+                        self.orderbook_buy_rows += 2
 
-            self.last_modified_order_book = self.current_modified_order_book
+                    for price in list(sell_orders.keys())[:10]:
+                        size = sell_orders[price]
+                        tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(row=self.orderbook_sell_rows, column=3)
+                        tk.Label(self.orderbook_window, text=str(size)).grid(row=self.orderbook_sell_rows, column=4)
+                        ttk.Separator(self.orderbook_window, orient="vertical").grid(row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+                        ttk.Separator(self.orderbook_window, orient="horizontal").grid(row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+                        self.orderbook_sell_rows += 2
+
+                    self.last_modified_order_book = self.current_modified_order_book
+            except EOFError:
+                print("Warning: collision of file processing")
 
         # Update positions
         """
@@ -280,7 +282,7 @@ class CustomerClient(tk.Frame):
             self.last_modified_positions = self.current_modified_positions
         """
 
-        self.root.after(1000, self.update_everything)
+        self.root.after(500, self.update_everything)
 
 
     def post_order(self):

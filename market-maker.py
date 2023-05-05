@@ -420,7 +420,7 @@ def main():
                             )
                         )
                         print_response(response.response)
-                        time.sleep(1)
+                        time.sleep(0.5)
                 
                 
                 # width = 0.50

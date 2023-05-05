@@ -7,8 +7,9 @@ import optparse
 import concurrent.futures
 import random
 import json
-import re
 import pickle
+import os
+import glob
 from sortedcontainers import SortedDict
 
 import chatapp_pb2 as pb2
@@ -358,7 +359,7 @@ def trade_message(username, dir, symbol, price, size):
 
 def post_message(username, dir, symbol, price, size):
     # Save dictionary data	
-    with open('order_book.pickle', 'wb') as file:	
+    with open('order_book_dump.pickle', 'wb') as file:	
         pickle.dump(order_book, file)	
     with open('positions.pickle', 'wb') as file:	
         pickle.dump(positions, file)
@@ -535,7 +536,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     if response:
         # Save dictionary data	
-        with open('order_book.pickle', 'wb') as file:	
+        with open('order_book_dump.pickle', 'wb') as file:	
             pickle.dump(order_book, file)	
         with open('positions.pickle', 'wb') as file:	
             pickle.dump(positions, file)
@@ -699,6 +700,10 @@ def start_server():
     #            messages[row[0]] = [row[1]]
     #     update_data()
     # open(f"{server_id}.csv", "w+")
+
+    # Delete any remnant .pickle files
+    for file in glob.glob("*.pickle"):
+        os.remove(file)
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
