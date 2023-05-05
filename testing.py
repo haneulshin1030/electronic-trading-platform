@@ -1,9 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 import pathlib
+from sortedcontainers import SortedDict
 
 import server
-from server import create_account, valid_password, login
+from server import create_account, valid_password, login, post_order
 import client
 
 
@@ -16,6 +17,10 @@ class UnitTests(unittest.TestCase):
     self.assertEqual(server.messages["user1"], [])
     self.assertEqual(server.passwords["user1"], "P@33word")
     self.assertEqual(server.user_status["user1"], True)
+    create_account("user2", "pa$$w0rD")
+    self.assertEqual(server.messages["user2"], [])
+    self.assertEqual(server.passwords["user2"], "pa$$w0rD")
+    self.assertEqual(server.user_status["user2"], True)
 
   # Tests login
   def test_login(self):
@@ -37,6 +42,29 @@ class UnitTests(unittest.TestCase):
     self.assertEqual(valid_password("p@ssWORD"), False)
     # Fails special character
     self.assertEqual(valid_password("passw0RD"), False)
+
+  def test_post_order(self):
+    init_positions = server.positions
+    post_order("user1", "buy", "AAPL", -1, 170, 100)
+    post_order("user1", "buy", "AAPL", -1, 171, 150)
+
+    # Check that open_orders and order_book are updated correctly
+    self.assertEqual(server.order_book['AAPL']['buy'], SortedDict({170: 100, 171: 150}))
+    self.assertEqual(server.order_book['AAPL']['sell'], SortedDict())
+
+    post_order("user1", "sell", "AAPL", -1, 171, 300)
+    post_order("user2", "sell", "TSLA", -1, 160, 200)
+    post_order("user2", "sell", "AAPL", -1, 161, 130)
+
+    # Check that open_orders and order_book are updated correctly
+    self.assertEqual(server.order_book['AAPL']['buy'], SortedDict({170: 100, 171: 150}))
+    self.assertEqual(server.order_book['AAPL']['sell'], SortedDict({161: 130, 171: 300}))
+    self.assertEqual(server.open_orders['AAPL']['buy'], SortedDict({170: [['user1', 100]], 171: [['user1', 150]]}))
+    self.assertEqual(server.open_orders['TSLA']['sell'], SortedDict({160: [['user2', 200]]}))
+
+    # Check that positions are NOT updated
+    self.assertEqual(init_positions, server.positions)
+
     
   # # Tests start_heartbeat and send_heartbeat processes
   # @patch('server.start_heartbeat')
