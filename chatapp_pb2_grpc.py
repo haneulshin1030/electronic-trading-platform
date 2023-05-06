@@ -6,8 +6,7 @@ import chatapp_pb2 as chatapp__pb2
 
 
 class ChatStub(object):
-    """The chat service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -17,7 +16,7 @@ class ChatStub(object):
         """
         self.Send = channel.unary_unary(
                 '/Chat/Send',
-                request_serializer=chatapp__pb2.Data.SerializeToString,
+                request_serializer=chatapp__pb2.ServerData.SerializeToString,
                 response_deserializer=chatapp__pb2.UserResponse.FromString,
                 )
         self.Heartbeat = channel.unary_unary(
@@ -27,7 +26,7 @@ class ChatStub(object):
                 )
         self.ServerResponse = channel.unary_unary(
                 '/Chat/ServerResponse',
-                request_serializer=chatapp__pb2.Request.SerializeToString,
+                request_serializer=chatapp__pb2.Order.SerializeToString,
                 response_deserializer=chatapp__pb2.Response.FromString,
                 )
         self.ClientMessages = channel.unary_stream(
@@ -43,39 +42,38 @@ class ChatStub(object):
 
 
 class ChatServicer(object):
-    """The chat service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def Send(self, request, context):
-        """Updates the databases of the other servers
+        """Send updated versions of the message queue and user list to the other servers
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Heartbeat(self, request, context):
-        """Sends heartbeat check to other servers
+        """Send heartbeat to other servers to indicate activity
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def ServerResponse(self, request, context):
-        """Client chat to server
+        """Generate server response to user order
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def ClientMessages(self, request, context):
-        """Sends stream of client<>client messages to each client
+        """Send messages between clients
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Leader(self, request, context):
-        """Client asking whether server is leader
+        """Query for the current leader server
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -86,7 +84,7 @@ def add_ChatServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Send': grpc.unary_unary_rpc_method_handler(
                     servicer.Send,
-                    request_deserializer=chatapp__pb2.Data.FromString,
+                    request_deserializer=chatapp__pb2.ServerData.FromString,
                     response_serializer=chatapp__pb2.UserResponse.SerializeToString,
             ),
             'Heartbeat': grpc.unary_unary_rpc_method_handler(
@@ -96,7 +94,7 @@ def add_ChatServicer_to_server(servicer, server):
             ),
             'ServerResponse': grpc.unary_unary_rpc_method_handler(
                     servicer.ServerResponse,
-                    request_deserializer=chatapp__pb2.Request.FromString,
+                    request_deserializer=chatapp__pb2.Order.FromString,
                     response_serializer=chatapp__pb2.Response.SerializeToString,
             ),
             'ClientMessages': grpc.unary_stream_rpc_method_handler(
@@ -117,8 +115,7 @@ def add_ChatServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class Chat(object):
-    """The chat service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def Send(request,
@@ -132,7 +129,7 @@ class Chat(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Chat/Send',
-            chatapp__pb2.Data.SerializeToString,
+            chatapp__pb2.ServerData.SerializeToString,
             chatapp__pb2.UserResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -166,7 +163,7 @@ class Chat(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Chat/ServerResponse',
-            chatapp__pb2.Request.SerializeToString,
+            chatapp__pb2.Order.SerializeToString,
             chatapp__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

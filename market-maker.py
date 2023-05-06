@@ -129,7 +129,7 @@ def main():
             opcode = "create"
             print("Please select a username.")
             username = input("Username: ")
-            print("Please select a password satisfying the criterion.")
+            print("Please select a password with a minumum of 8 characters and at least one uppercase letter, one lowercase letter, one numerical digit, and one character from _, @, or $.")
             password = input("Password: ")
 
         response = stub.ServerResponse(
