@@ -84,8 +84,8 @@ messages = {}
 # Error string for if the server is not the leader.
 ERROR_NOT_LEADER = "Error: server is not the leader."
 
-# The time each server waits before sending a heartbeat
-default_sleep_time = 3
+# The time each server waits before checking if the leader is active
+default_sleep_time = 1
 
 
 def save_data_locally(user_data_updated=False):
@@ -237,6 +237,8 @@ class ChatServicer(pb2_grpc.ChatServicer):
         positions = json.loads(server_market_data.positions)
         messages = json.loads(server_market_data.messages)
 
+        save_data_locally()
+
         return pb2.ServerResponse()
 
     def ReceiveServerClientData(self, server_client_data, context):
@@ -246,6 +248,8 @@ class ChatServicer(pb2_grpc.ChatServicer):
         global user_status, passwords
         user_status = json.loads(server_client_data.user_status)
         passwords = json.loads(server_client_data.passwords)
+
+        save_data_locally(user_data_updated=True)
 
         return pb2.ServerResponse()
 
@@ -365,7 +369,6 @@ def post_message(username, dir, symbol, price, size):
 
 def find_best_price(opp, symbol, price):
     global open_orders
-
     # Find best existing bid or offer price
     best_price = None
     if opp == "sell":
@@ -373,6 +376,8 @@ def find_best_price(opp, symbol, price):
         if price < best_price:
             return None
     else:
+        print(open_orders[symbol])
+        print(opp)
         best_price = max(open_orders[symbol][opp].keys())
         if price > best_price:
             return None
@@ -572,6 +577,26 @@ def kill_server():
     sys.exit(0)
 
 
+def reformat_data():
+    global open_orders, order_book, positions
+
+    for symbol in symbol_list:
+        for dir in dir_list:
+            open_orders[symbol][dir] = {float(price): [[user, int(float(
+                size))] for user, size in order_list] for price, order_list in open_orders[symbol][dir].items()}
+
+    for symbol in symbol_list:
+        for dir in dir_list:
+            order_book[symbol][dir] = {float(price): int(float(
+                size)) for price, size in order_book[symbol][dir].items()}
+
+    for username in user_status.keys():
+        positions[username] = {symbol: int(float(position))
+                               for symbol, position in positions[username].items()}
+
+    return
+
+
 def check_leader():
     """
     Check if leader is currently active. If not, set a new leader.
@@ -582,6 +607,8 @@ def check_leader():
             if alive:
                 leader_id = id
                 print(f"The new leader is {leader_id}")
+                if server_id == leader_id:
+                    reformat_data()
                 return
         # No leaders found
         print("Error: No active servers.")

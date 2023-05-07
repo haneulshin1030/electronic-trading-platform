@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\"{\n\x0b\x43lientOrder\x12\x0e\n\x06opcode\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x0e\n\x06symbol\x18\x04 \x01(\t\x12\x0b\n\x03\x64ir\x18\x05 \x01(\t\x12\r\n\x05price\x18\x06 \x01(\x02\x12\x0c\n\x04size\x18\x07 \x01(\x05\"\x82\x01\n\nServerData\x12\x13\n\x0bopen_orders\x18\x01 \x01(\t\x12\x12\n\norder_book\x18\x02 \x01(\t\x12\x13\n\x0buser_status\x18\x03 \x01(\t\x12\x11\n\tpasswords\x18\x04 \x01(\t\x12\x11\n\tpositions\x18\x05 \x01(\t\x12\x10\n\x08messages\x18\x06 \x01(\t\"\x0e\n\x0cUserResponse\"\x12\n\x10HeartbeatRequest\"#\n\x11HeartbeatResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\"\x1c\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\t\"\x1c\n\x08Username\x12\x10\n\x08username\x18\x01 \x01(\t\"\x0f\n\rLeaderRequest\" \n\x0eLeaderResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\x32\xfe\x01\n\x04\x43hat\x12.\n\x0eSendServerData\x12\x0b.ServerData\x1a\r.UserResponse\"\x00\x12\x34\n\tHeartbeat\x12\x11.HeartbeatRequest\x1a\x12.HeartbeatResponse\"\x00\x12/\n\x12RequestClientOrder\x12\x0c.ClientOrder\x1a\t.Response\"\x00\x12.\n\x12SendClientMessages\x12\t.Username\x1a\t.Response\"\x00\x30\x01\x12/\n\nFindLeader\x12\x0e.LeaderRequest\x1a\x0f.LeaderResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\"{\n\x0b\x43lientOrder\x12\x0e\n\x06opcode\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x0e\n\x06symbol\x18\x04 \x01(\t\x12\x0b\n\x03\x64ir\x18\x05 \x01(\t\x12\r\n\x05price\x18\x06 \x01(\x02\x12\x0c\n\x04size\x18\x07 \x01(\x05\"`\n\x10ServerMarketData\x12\x13\n\x0bopen_orders\x18\x01 \x01(\t\x12\x12\n\norder_book\x18\x02 \x01(\t\x12\x11\n\tpositions\x18\x03 \x01(\t\x12\x10\n\x08messages\x18\x04 \x01(\t\":\n\x10ServerClientData\x12\x13\n\x0buser_status\x18\x01 \x01(\t\x12\x11\n\tpasswords\x18\x02 \x01(\t\"&\n\x10\x43lientMarketData\x12\x12\n\norder_book\x18\x01 \x01(\t\"\x10\n\x0eServerResponse\"\x12\n\x10HeartbeatRequest\"#\n\x11HeartbeatResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\"\x1c\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\t\"\x1c\n\x08Username\x12\x10\n\x08username\x18\x01 \x01(\t\"\x0f\n\rLeaderRequest\" \n\x0eLeaderResponse\x12\x0e\n\x06leader\x18\x01 \x01(\x05\x32\x91\x03\n\x04\x43hat\x12?\n\x17ReceiveServerMarketData\x12\x11.ServerMarketData\x1a\x0f.ServerResponse\"\x00\x12?\n\x17ReceiveServerClientData\x12\x11.ServerClientData\x1a\x0f.ServerResponse\"\x00\x12?\n\x17ReceiveClientMarketData\x12\x11.ClientMarketData\x1a\x0f.ServerResponse\"\x00\x12\x34\n\tHeartbeat\x12\x11.HeartbeatRequest\x1a\x12.HeartbeatResponse\"\x00\x12/\n\x12RequestClientOrder\x12\x0c.ClientOrder\x1a\t.Response\"\x00\x12.\n\x12SendClientMessages\x12\t.Username\x1a\t.Response\"\x00\x30\x01\x12/\n\nFindLeader\x12\x0e.LeaderRequest\x1a\x0f.LeaderResponse\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'chatapp_pb2', globals())
@@ -22,22 +22,26 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
   _CLIENTORDER._serialized_start=17
   _CLIENTORDER._serialized_end=140
-  _SERVERDATA._serialized_start=143
-  _SERVERDATA._serialized_end=273
-  _USERRESPONSE._serialized_start=275
-  _USERRESPONSE._serialized_end=289
-  _HEARTBEATREQUEST._serialized_start=291
-  _HEARTBEATREQUEST._serialized_end=309
-  _HEARTBEATRESPONSE._serialized_start=311
-  _HEARTBEATRESPONSE._serialized_end=346
-  _RESPONSE._serialized_start=348
-  _RESPONSE._serialized_end=376
-  _USERNAME._serialized_start=378
-  _USERNAME._serialized_end=406
-  _LEADERREQUEST._serialized_start=408
-  _LEADERREQUEST._serialized_end=423
-  _LEADERRESPONSE._serialized_start=425
-  _LEADERRESPONSE._serialized_end=457
-  _CHAT._serialized_start=460
-  _CHAT._serialized_end=714
+  _SERVERMARKETDATA._serialized_start=142
+  _SERVERMARKETDATA._serialized_end=238
+  _SERVERCLIENTDATA._serialized_start=240
+  _SERVERCLIENTDATA._serialized_end=298
+  _CLIENTMARKETDATA._serialized_start=300
+  _CLIENTMARKETDATA._serialized_end=338
+  _SERVERRESPONSE._serialized_start=340
+  _SERVERRESPONSE._serialized_end=356
+  _HEARTBEATREQUEST._serialized_start=358
+  _HEARTBEATREQUEST._serialized_end=376
+  _HEARTBEATRESPONSE._serialized_start=378
+  _HEARTBEATRESPONSE._serialized_end=413
+  _RESPONSE._serialized_start=415
+  _RESPONSE._serialized_end=443
+  _USERNAME._serialized_start=445
+  _USERNAME._serialized_end=473
+  _LEADERREQUEST._serialized_start=475
+  _LEADERREQUEST._serialized_end=490
+  _LEADERRESPONSE._serialized_start=492
+  _LEADERRESPONSE._serialized_end=524
+  _CHAT._serialized_start=527
+  _CHAT._serialized_end=928
 # @@protoc_insertion_point(module_scope)

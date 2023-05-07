@@ -14,10 +14,20 @@ class ChatStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.SendServerData = channel.unary_unary(
-                '/Chat/SendServerData',
-                request_serializer=chatapp__pb2.ServerData.SerializeToString,
-                response_deserializer=chatapp__pb2.UserResponse.FromString,
+        self.ReceiveServerMarketData = channel.unary_unary(
+                '/Chat/ReceiveServerMarketData',
+                request_serializer=chatapp__pb2.ServerMarketData.SerializeToString,
+                response_deserializer=chatapp__pb2.ServerResponse.FromString,
+                )
+        self.ReceiveServerClientData = channel.unary_unary(
+                '/Chat/ReceiveServerClientData',
+                request_serializer=chatapp__pb2.ServerClientData.SerializeToString,
+                response_deserializer=chatapp__pb2.ServerResponse.FromString,
+                )
+        self.ReceiveClientMarketData = channel.unary_unary(
+                '/Chat/ReceiveClientMarketData',
+                request_serializer=chatapp__pb2.ClientMarketData.SerializeToString,
+                response_deserializer=chatapp__pb2.ServerResponse.FromString,
                 )
         self.Heartbeat = channel.unary_unary(
                 '/Chat/Heartbeat',
@@ -44,9 +54,21 @@ class ChatStub(object):
 class ChatServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def SendServerData(self, request, context):
+    def ReceiveServerMarketData(self, request, context):
         """Send updated versions of the message queue and user list to the other servers
         """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReceiveServerClientData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReceiveClientMarketData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -82,10 +104,20 @@ class ChatServicer(object):
 
 def add_ChatServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'SendServerData': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendServerData,
-                    request_deserializer=chatapp__pb2.ServerData.FromString,
-                    response_serializer=chatapp__pb2.UserResponse.SerializeToString,
+            'ReceiveServerMarketData': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReceiveServerMarketData,
+                    request_deserializer=chatapp__pb2.ServerMarketData.FromString,
+                    response_serializer=chatapp__pb2.ServerResponse.SerializeToString,
+            ),
+            'ReceiveServerClientData': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReceiveServerClientData,
+                    request_deserializer=chatapp__pb2.ServerClientData.FromString,
+                    response_serializer=chatapp__pb2.ServerResponse.SerializeToString,
+            ),
+            'ReceiveClientMarketData': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReceiveClientMarketData,
+                    request_deserializer=chatapp__pb2.ClientMarketData.FromString,
+                    response_serializer=chatapp__pb2.ServerResponse.SerializeToString,
             ),
             'Heartbeat': grpc.unary_unary_rpc_method_handler(
                     servicer.Heartbeat,
@@ -118,7 +150,7 @@ class Chat(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def SendServerData(request,
+    def ReceiveServerMarketData(request,
             target,
             options=(),
             channel_credentials=None,
@@ -128,9 +160,43 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Chat/SendServerData',
-            chatapp__pb2.ServerData.SerializeToString,
-            chatapp__pb2.UserResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/Chat/ReceiveServerMarketData',
+            chatapp__pb2.ServerMarketData.SerializeToString,
+            chatapp__pb2.ServerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ReceiveServerClientData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Chat/ReceiveServerClientData',
+            chatapp__pb2.ServerClientData.SerializeToString,
+            chatapp__pb2.ServerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ReceiveClientMarketData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Chat/ReceiveClientMarketData',
+            chatapp__pb2.ClientMarketData.SerializeToString,
+            chatapp__pb2.ServerResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

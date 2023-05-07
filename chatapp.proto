@@ -29,12 +29,6 @@ message ClientOrder {
   int32 size = 7;
 }
 
-// The current message queue and the list of users
-message ServerClientData {
-  string user_status = 1;
-  string passwords = 2;
-}
-
 message ServerMarketData {
   string open_orders = 1;
   string order_book = 2;
@@ -42,12 +36,18 @@ message ServerMarketData {
   string messages = 4;
 }
 
+// The current message queue and the list of users
+message ServerClientData {
+  string user_status = 1;
+  string passwords = 2;
+}
+
 message ClientMarketData {
   string order_book = 1;
 }
 
 // Response message to user
-message UserResponse {
+message ServerResponse {
 }
 
 // Heartbeat request

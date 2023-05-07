@@ -28,6 +28,7 @@ server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 # GUI for customer client
 class CustomerClient(tk.Frame):
     def __init__(self, username, password, stub):
+        print(123)
         self.username = username
         self.password = password
         self.stub = stub
