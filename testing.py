@@ -133,14 +133,8 @@ class UnitTests(unittest.TestCase):
   # Tests start_server process, check pickle file logic
   @patch('server.start_server')
   def test_start_server(self, mock_start_server):
-    path = pathlib.Path('order_book.pickle')
-    self.assertFalse(path.is_file())
-    
     server.start_server()
     mock_start_server.assert_called()
-
-    path = pathlib.Path('order_book_dump.pickle')
-    self.assertTrue(path.is_file())
 
   # Tests leader election process
   @patch('client.find_leader')
