@@ -414,6 +414,10 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         user_data_updated = True
         response = login(username, password)
 
+    # Send order book to client
+    elif opcode == "init_orderbook":
+        send_order_book_to_clients(symbol)
+        response = "Order book initialized."
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
     elif opcode == "buy" or opcode == "sell":
