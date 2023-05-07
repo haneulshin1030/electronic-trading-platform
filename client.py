@@ -70,7 +70,7 @@ class CustomerClient(tk.Frame):
         self.quantity_input.grid(row=3, column=1, padx=5, pady=5, sticky="W")
 
         self.positions_button = tk.Button(
-            self.root, text="Post Order ->", command=self.post_order)
+            self.root, text="Post Order", command=self.post_order)
         self.positions_button.grid(
             row=4, column=1, padx=5, pady=5, sticky="SE")
 
@@ -100,7 +100,7 @@ class CustomerClient(tk.Frame):
             row=0, column=1, padx=5, pady=5, sticky="W")
 
         self.show_orderbook_button = tk.Button(
-            self.window5, text="Open Orderbook ->", command=self.open_orderbook)
+            self.window5, text="Open Orderbook", command=self.open_orderbook)
         self.show_orderbook_button.grid(
             row=2, column=1, padx=5, pady=5, sticky="SE")
 
@@ -266,6 +266,8 @@ class CustomerClient(tk.Frame):
         self.root.after(100, self.update_everything)
 
     def attempt_to_post_order(self, opcode, username, password, dir, symbol, price, size):
+        global leader_id
+
         """
         Continue attempting to post the order until the leader is found.
         """
@@ -337,15 +339,15 @@ class CustomerClient(tk.Frame):
                                               dir, symbol, price, size)
 
         # Real-time update message log
-        order_message = "Posted an order to " + opcode + " " + \
-            str(size) + " shares of " + symbol + \
-            " for $" + str(price) + "/share.\n"
-        self.add_message(order_message)
+        # order_message = "Posted an order to " + opcode + " " + \
+        #     str(size) + " shares of " + symbol + \
+        #     " for $" + str(price) + "/share.\n"
+        # self.add_message(order_message)
 
         # ensure no duplicate Posted messages in non-matched case
-        if response.response[0] != 'P':
-            print_response(response.response)
-            self.add_message(response.response + "\n")
+        # if response.response[0] != 'P':
+        print_response(response.response)
+        self.add_message(response.response + "\n")
 
     def add_message(self, message):
         self.text_widget.insert(tk.END, message)
@@ -363,7 +365,12 @@ class CustomerClient(tk.Frame):
                 # When a new message is found, iterate to it and print it.
                 response = next(messages)
                 print_response(response.response)
-                self.add_message(response.response + "\n")
+                # If new leader message
+                if (response.response)[:10] == "Connecting":
+                    global leader_id
+                    leader_id, self.stub = find_leader()
+                else:
+                    self.add_message(response.response + "\n")
         except:
             return
 

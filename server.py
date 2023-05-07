@@ -417,7 +417,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     # Post a user's order in the market and execute any matched trades
     # Think about race conditions? Lock and unlock?
-    elif opcode == "buy" or opcode == "sell" or opcode == "mm" or opcode == "mm_update":
+    elif opcode == "buy" or opcode == "sell":
 
         preposition = None
 
@@ -598,6 +598,13 @@ def reformat_data():
     return
 
 
+def send_clients_new_leader():
+    global leader_id, messages
+    for username in user_status.keys():
+        messages[username].append(f"Connecting to server {leader_id}...")
+    return
+
+
 def check_leader():
     """
     Check if leader is currently active. If not, set a new leader.
@@ -610,6 +617,7 @@ def check_leader():
                 print(f"The new leader is {leader_id}")
                 if server_id == leader_id:
                     reformat_data()
+                    send_clients_new_leader()
                 return
         # No leaders found
         print("Error: No active servers.")
