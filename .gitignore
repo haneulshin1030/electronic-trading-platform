@@ -1,3 +1,6 @@
+chatapp_pb2*.py
 *.pickle
 *.pyc
+*.vscode
 myenv*
+*.DS_Store
