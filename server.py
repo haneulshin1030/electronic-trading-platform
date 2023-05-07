@@ -79,6 +79,9 @@ messages = {}
 # Error string for if the server is not the leader.
 ERROR_NOT_LEADER = "Error: server is not the leader."
 
+# The time each server waits before sending a heartbeat
+default_sleep_time = 3
+
 
 def save_data(
     open_orders, order_book, user_status, passwords, positions, messages, file_name
@@ -140,7 +143,7 @@ def save_data(
 
 
 def save_login_data_locally():
-    global server_id
+    global user_status, passwords, server_id
     with open(f'user_status_{server_id}.pickle', 'wb') as file:
         pickle.dump(user_status, file)
     with open(f'passwords_{server_id}.pickle', 'wb') as file:
@@ -149,7 +152,7 @@ def save_login_data_locally():
 
 
 def save_market_data_locally():
-    global server_id
+    global open_orders, order_book, positions, messages, server_id
     with open(f'open_orders_{server_id}.pickle', 'wb') as file:
         pickle.dump(open_orders, file)
     with open(f'order_book_{server_id}.pickle', 'wb') as file:
@@ -649,7 +652,7 @@ def start_heartbeat(id):
     send_heartbeat(stub, id)
     while None in active_servers:
         continue
-    sleep_time = random.randint(1, 5)
+    sleep_time = default_sleep_time
     while event.is_set():
         time.sleep(sleep_time)
         send_heartbeat(stub, id)
@@ -668,92 +671,27 @@ def start_server():
             heartbeat_thread.start()
             threads.append(heartbeat_thread)
 
+    # Persistence: load all data previously saved locally to server
+    # If this is the only remaining server, then it will have all the updates
+    # Otherwise, if another server was already alive and sending updates, then it will
+    # send this server the updated data now that it is online.
+    global open_orders, order_book, user_status, passwords, positions, messages
+    with open(f'user_status_{server_id}.pickle', 'rb') as file:
+        user_status = pickle.load(file)
+    with open(f'passwords_{server_id}.pickle', 'rb') as file:
+        passwords = pickle.load(file)
+    with open(f'open_orders_{server_id}.pickle', 'rb') as file:
+        open_orders = pickle.load(file)
+    with open(f'order_book_{server_id}.pickle', 'rb') as file:
+        order_book = pickle.load(file)
+    with open(f'positions_{server_id}.pickle', 'rb') as file:
+        positions = pickle.load(file)
+    with open(f'messages_{server_id}.pickle', 'rb') as file:
+        messages = pickle.load(file)
+
     global server
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
     pb2_grpc.add_ChatServicer_to_server(ChatServicer(), server)
-
-    global open_orders, order_book, user_status, passwords, positions, messages
-
-    # ^ make sure these are initialized?
-
-    # Read csv files into the server data
-
-    # open(f"open_orders_{server_id}.csv", "a+")
-    # with open(f"open_orders_{server_id}.csv", "r+") as csv_file:
-    #   csv_reader = csv.reader(csv_file, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True)
-    #   for row in csv_reader:
-    #     dir, symbol, price, username, size = row
-    #     if price in open_orders[symbol][dir]:
-    #       open_orders[symbol][dir][price].append([username, size])
-    #     else:
-    #       open_orders[symbol][dir][price] = ([username, size])
-
-    # # Store open orders
-    # with open(f"open_orders_{server_id}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for symbol in symbol_list:
-    #       for dir in dir_list:
-    #         for price in open_orders[symbol][dir]:
-    #           for username, size in open_orders[symbol][dir][price]:
-    #             csv_writer.writerow([symbol] + [dir] + [price] + [username] + [size])
-
-    # file_name = server_id
-    # # Store order book
-    # with open(f"order_book_{file_name}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for symbol in symbol_list:
-    #       for dir in dir_list:
-    #         for price, size in list(order_book[symbol][dir].items()):
-    #           csv_writer.writerow([symbol] + [dir] + [price] + [size])
-
-    # # Store user status
-    # with open(f"user_status_{file_name}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for username, online in list(user_status.items()):
-    #       csv_writer.writerow([username] + [online])
-
-    # # Store user status
-    # with open(f"passwords_{file_name}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for username, password in list(passwords.items()):
-    #       csv_writer.writerow([username] + [password])
-
-    # # Store positions
-    # with open(f"positions_{file_name}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for user in positions.keys():
-    #       for symbol, position in list(positions[username].items()):
-    #         csv_writer.writerow([username] + [symbol] + [position])
-
-    # # Store message queue
-    # with open(f"messages_{file_name}.csv", "w+") as f:
-    #     csv_writer = csv.writer(f)
-
-    #     for username, message_list in list(messages.items()):
-    #       for message in message_list:
-    #         csv_writer.writerow([username] + [message])
-
-    #     for row in csv_reader:
-    #         if row[0] == "users_list":
-    #            user_list += row
-    #            continue
-    #         print(row[0], row[1])
-    #         if row[0] in messages.keys():
-    #           messages[row[0]].append(row[1])
-    #         else:
-    #            user_list.append(row[0])
-    #            messages[row[0]] = [row[1]]
-    #     update_data()
-    # open(f"{server_id}.csv", "w+")
-
-    # Delete any remnant .pickle files
-    for file in glob.glob("*.pickle"):
-        os.remove(file)
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
