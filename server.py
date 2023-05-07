@@ -639,6 +639,10 @@ def start_server():
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
     pb2_grpc.add_ChatServicer_to_server(ChatServicer(), server)
 
+    # TODO: remove this eventually
+    for file in glob.glob("*.pickle"):
+        os.remove(file)
+
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"
     server.add_insecure_port(server_address)

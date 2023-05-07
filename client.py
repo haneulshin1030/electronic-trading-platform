@@ -37,9 +37,9 @@ class CustomerClient(tk.Frame):
         self.stock_symbol = ""
 
         # Listen for messages
-        listen_thread = threading.Thread(
+        self.listen_thread = threading.Thread(
             target=(self.listen_for_messages), args=(stub, username))
-        listen_thread.start()
+        self.listen_thread.start()
 
         # Create root window: Customer Client inputs
         self.root = tk.Tk()
@@ -86,47 +86,6 @@ class CustomerClient(tk.Frame):
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.text_widget.yview)
         # text_widget.insert(tk.END, "TEST MESSAGE\n" * 20)
-
-        # Create third window: Open Orders Table
-        # self.window3 = tk.Toplevel(self.root)
-        # self.window3.title('Open Orders')
-        # self.window3.geometry('400x200+0+650')
-        # self.window3_rows = 3
-
-        # tk.Label(self.window3, text="").grid(row=0, columnspan=7)
-        # ttk.Separator(self.window3, orient="horizontal").grid(row=1, column=0, columnspan=7, sticky="ew")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="Stock").grid(row=2, column=1, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="Price").grid(row=2, column=3, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="Quantity").grid(row=2, column=5, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=2, column=6, rowspan=1, sticky="ns")
-        # ttk.Separator(self.window3, orient="horizontal").grid(row=3, column=0, columnspan=7, sticky="ew")
-
-        # HARDCODE TEST
-        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=0, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="AAPL").grid(row=4, column=1, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=2, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="$40.62").grid(row=4, column=3, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=4, rowspan=1, sticky="ns")
-        # tk.Label(self.window3, text="50").grid(row=4, column=5, sticky="W")
-        # ttk.Separator(self.window3, orient="vertical").grid(row=4, column=6, rowspan=1, sticky="ns")
-        # ttk.Separator(self.window3, orient="horizontal").grid(row=5, column=0, columnspan=7, sticky="ew")
-
-        # Create fourth window: Positions Table
-        # self.window4 = tk.Toplevel(self.root)
-        # self.window4.title('Positions Table')
-        # self.window4.geometry('400x200+500+0')
-
-        # tk.Label(self.window4, text="").grid(row=0, columnspan=5)
-        # ttk.Separator(self.window4, orient="horizontal").grid(row=1, column=0, columnspan=5, sticky="ew")
-        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=0, rowspan=1, sticky="ns")
-        # tk.Label(self.window4, text="Stock").grid(row=2, column=1, sticky="W")
-        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=2, rowspan=1, sticky="ns")
-        # tk.Label(self.window4, text="Shares").grid(row=2, column=3, sticky="W")
-        # ttk.Separator(self.window4, orient="vertical").grid(row=2, column=4, rowspan=1, sticky="ns")
-        # ttk.Separator(self.window4, orient="horizontal").grid(row=3, column=0, columnspan=5, sticky="ew")
 
         # Create fifth window: Stock Symbol Lookup to open its corresponding orderbook
         self.window5 = tk.Toplevel(self.root)
@@ -304,37 +263,42 @@ class CustomerClient(tk.Frame):
             except EOFError:
                 pass
 
-        # Update positions
-        """
-        self.positions_file = 'positions.pickle'
-        self.current_modified_positions = os.path.getmtime(self.positions_file)
-
-        if self.current_modified_positions != self.last_modified_positions:
-            with open(self.positions_file, "rb") as f:
-                positions = pickle.load(f)
-            print(positions)
-
-            # Clear window
-            for widget in self.window4.winfo_children():
-                widget.destroy()
-
-            # Create the table headers and lines
-            self.init_positions()
-            self.positions_rows = 4
-
-            for symbol, shares in positions[self.username].items():
-                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=0, rowspan=1, sticky="ns")
-                tk.Label(self.window4, text=symbol).grid(row=self.positions_rows, column=1, sticky="W")
-                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=2, rowspan=1, sticky="ns")
-                tk.Label(self.window4, text=shares).grid(row=self.positions_rows, column=3, sticky="W")
-                ttk.Separator(self.window4, orient="vertical").grid(row=self.positions_rows, column=4, rowspan=1, sticky="ns")
-                ttk.Separator(self.window4, orient="horizontal").grid(row=self.positions_rows+1, column=0, columnspan=5, sticky="ew")
-                self.positions_rows += 2
-
-            self.last_modified_positions = self.current_modified_positions
-        """
-
         self.root.after(100, self.update_everything)
+
+    def attempt_to_post_order(self, opcode, username, password, dir, symbol, price, size):
+        """
+        Continue attempting to post the order until the leader is found.
+        """
+        response = None
+
+        try:
+            response = self.stub.RequestClientOrder(
+                pb2.ClientOrder(
+                    opcode=opcode,
+                    username=username,
+                    password=password,
+                    symbol=symbol,
+                    dir=dir,
+                    price=price,
+                    size=size,
+                )
+            )
+        # Exception for if the previous leader server went down and a new leader was determined.
+        except (grpc._channel._InactiveRpcError, LeaderDisconnected):
+            # Terminate the current listening thread and find a new leader.
+            self.listen_thread.join()
+            leader_id = find_leader()
+            channel = grpc.insecure_channel(server_list[leader_id])
+            self.stub = pb2_grpc.ChatStub(channel)
+
+            # Start the listening thread.
+            self.listen_thread = threading.Thread(
+                target=(self.listen_for_messages), args=(self.stub, username))
+            self.listen_thread.start()
+
+            response = self.attempt_to_post_order(opcode, username,
+                                                  password, dir, symbol, price, size)
+        return response
 
     def post_order(self):
         """
@@ -351,17 +315,8 @@ class CustomerClient(tk.Frame):
         price = float(self.price_input.get())
         size = int(self.quantity_input.get())
 
-        response = self.stub.RequestClientOrder(
-            pb2.ClientOrder(
-                opcode=opcode,
-                username=username,
-                password=password,
-                symbol=symbol,
-                dir=dir,
-                price=price,
-                size=size,
-            )
-        )
+        response = self.attempt_to_post_order(opcode, username, password,
+                                              dir, symbol, price, size)
 
         # Real-time update message log
         order_message = "Posted an order to " + opcode + " " + \
