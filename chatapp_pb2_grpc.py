@@ -14,8 +14,8 @@ class ChatStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Send = channel.unary_unary(
-                '/Chat/Send',
+        self.SendServerData = channel.unary_unary(
+                '/Chat/SendServerData',
                 request_serializer=chatapp__pb2.ServerData.SerializeToString,
                 response_deserializer=chatapp__pb2.UserResponse.FromString,
                 )
@@ -24,18 +24,18 @@ class ChatStub(object):
                 request_serializer=chatapp__pb2.HeartbeatRequest.SerializeToString,
                 response_deserializer=chatapp__pb2.HeartbeatResponse.FromString,
                 )
-        self.ServerResponse = channel.unary_unary(
-                '/Chat/ServerResponse',
-                request_serializer=chatapp__pb2.Order.SerializeToString,
+        self.SendClientOrder = channel.unary_unary(
+                '/Chat/SendClientOrder',
+                request_serializer=chatapp__pb2.ClientOrder.SerializeToString,
                 response_deserializer=chatapp__pb2.Response.FromString,
                 )
-        self.ClientMessages = channel.unary_stream(
-                '/Chat/ClientMessages',
+        self.ReceiveClientMessages = channel.unary_stream(
+                '/Chat/ReceiveClientMessages',
                 request_serializer=chatapp__pb2.Username.SerializeToString,
                 response_deserializer=chatapp__pb2.Response.FromString,
                 )
-        self.Leader = channel.unary_unary(
-                '/Chat/Leader',
+        self.FindLeader = channel.unary_unary(
+                '/Chat/FindLeader',
                 request_serializer=chatapp__pb2.LeaderRequest.SerializeToString,
                 response_deserializer=chatapp__pb2.LeaderResponse.FromString,
                 )
@@ -44,7 +44,7 @@ class ChatStub(object):
 class ChatServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Send(self, request, context):
+    def SendServerData(self, request, context):
         """Send updated versions of the message queue and user list to the other servers
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -58,21 +58,21 @@ class ChatServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ServerResponse(self, request, context):
+    def SendClientOrder(self, request, context):
         """Generate server response to user order
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ClientMessages(self, request, context):
+    def ReceiveClientMessages(self, request, context):
         """Send messages between clients
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Leader(self, request, context):
+    def FindLeader(self, request, context):
         """Query for the current leader server
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -82,8 +82,8 @@ class ChatServicer(object):
 
 def add_ChatServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Send': grpc.unary_unary_rpc_method_handler(
-                    servicer.Send,
+            'SendServerData': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendServerData,
                     request_deserializer=chatapp__pb2.ServerData.FromString,
                     response_serializer=chatapp__pb2.UserResponse.SerializeToString,
             ),
@@ -92,18 +92,18 @@ def add_ChatServicer_to_server(servicer, server):
                     request_deserializer=chatapp__pb2.HeartbeatRequest.FromString,
                     response_serializer=chatapp__pb2.HeartbeatResponse.SerializeToString,
             ),
-            'ServerResponse': grpc.unary_unary_rpc_method_handler(
-                    servicer.ServerResponse,
-                    request_deserializer=chatapp__pb2.Order.FromString,
+            'SendClientOrder': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendClientOrder,
+                    request_deserializer=chatapp__pb2.ClientOrder.FromString,
                     response_serializer=chatapp__pb2.Response.SerializeToString,
             ),
-            'ClientMessages': grpc.unary_stream_rpc_method_handler(
-                    servicer.ClientMessages,
+            'ReceiveClientMessages': grpc.unary_stream_rpc_method_handler(
+                    servicer.ReceiveClientMessages,
                     request_deserializer=chatapp__pb2.Username.FromString,
                     response_serializer=chatapp__pb2.Response.SerializeToString,
             ),
-            'Leader': grpc.unary_unary_rpc_method_handler(
-                    servicer.Leader,
+            'FindLeader': grpc.unary_unary_rpc_method_handler(
+                    servicer.FindLeader,
                     request_deserializer=chatapp__pb2.LeaderRequest.FromString,
                     response_serializer=chatapp__pb2.LeaderResponse.SerializeToString,
             ),
@@ -118,7 +118,7 @@ class Chat(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Send(request,
+    def SendServerData(request,
             target,
             options=(),
             channel_credentials=None,
@@ -128,7 +128,7 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Chat/Send',
+        return grpc.experimental.unary_unary(request, target, '/Chat/SendServerData',
             chatapp__pb2.ServerData.SerializeToString,
             chatapp__pb2.UserResponse.FromString,
             options, channel_credentials,
@@ -152,7 +152,7 @@ class Chat(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ServerResponse(request,
+    def SendClientOrder(request,
             target,
             options=(),
             channel_credentials=None,
@@ -162,14 +162,14 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Chat/ServerResponse',
-            chatapp__pb2.Order.SerializeToString,
+        return grpc.experimental.unary_unary(request, target, '/Chat/SendClientOrder',
+            chatapp__pb2.ClientOrder.SerializeToString,
             chatapp__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ClientMessages(request,
+    def ReceiveClientMessages(request,
             target,
             options=(),
             channel_credentials=None,
@@ -179,14 +179,14 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/Chat/ClientMessages',
+        return grpc.experimental.unary_stream(request, target, '/Chat/ReceiveClientMessages',
             chatapp__pb2.Username.SerializeToString,
             chatapp__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def Leader(request,
+    def FindLeader(request,
             target,
             options=(),
             channel_credentials=None,
@@ -196,7 +196,7 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Chat/Leader',
+        return grpc.experimental.unary_unary(request, target, '/Chat/FindLeader',
             chatapp__pb2.LeaderRequest.SerializeToString,
             chatapp__pb2.LeaderResponse.FromString,
             options, channel_credentials,

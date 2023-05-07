@@ -2,21 +2,21 @@ syntax = "proto3";
 
 service Chat {
   // Send updated versions of the message queue and user list to the other servers
-  rpc Send(ServerData) returns (UserResponse) {}
+  rpc SendServerData(ServerData) returns (UserResponse) {}
   // Send heartbeat to other servers to indicate activity
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
 
   // Generate server response to user order
-  rpc ServerResponse (Order) returns (Response) {}
+  rpc SendClientOrder (ClientOrder) returns (Response) {}
   // Send messages between clients
-  rpc ClientMessages (Username) returns (stream Response) {}
+  rpc ReceiveClientMessages (Username) returns (stream Response) {}
 
   // Query for the current leader server
-  rpc Leader (LeaderRequest) returns (LeaderResponse) {}
+  rpc FindLeader (LeaderRequest) returns (LeaderResponse) {}
 }
 
 // Order sent by user to server
-message Order {
+message ClientOrder {
   string opcode = 1;
   string username = 2;
   string password = 3;
@@ -30,9 +30,10 @@ message Order {
 message ServerData {
   string open_orders = 1;
   string order_book = 2;
-  string users = 3;
-  string positions = 4;
-  string messages = 5;
+  string user_status = 3;
+  string passwords = 4;
+  string positions = 5;
+  string messages = 6;
 }
 
 // Response message to user

@@ -28,13 +28,13 @@ threads = []
 event = threading.Event()
 
 # Current server.
-server = None
+server_id = None
 
 # Dictionary mapping index -> replica.
 address_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 
 # Server id of leader.
-leader = None
+leader_id = None
 
 # Current live servers.
 active_servers = [None, None, None]
@@ -115,7 +115,7 @@ def save_data(
         for username, online in list(user_status.items()):
             csv_writer.writerow([username] + [online])
 
-    # Store user status
+    # Store passwords
     with open(f"passwords_{file_name}.csv", "w+") as f:
         csv_writer = csv.writer(f)
 
@@ -139,6 +139,35 @@ def save_data(
                 csv_writer.writerow([username] + [message])
 
 
+def save_login_data_locally():
+    global server_id
+    with open(f'user_status_{server_id}.pickle', 'wb') as file:
+        pickle.dump(user_status, file)
+    with open(f'passwords_{server_id}.pickle', 'wb') as file:
+        pickle.dump(passwords, file)
+    return
+
+
+def save_market_data_locally():
+    global server_id
+    with open(f'open_orders_{server_id}.pickle', 'wb') as file:
+        pickle.dump(open_orders, file)
+    with open(f'order_book_{server_id}.pickle', 'wb') as file:
+        pickle.dump(order_book, file)
+
+    with open(f'positions_{server_id}.pickle', 'wb') as file:
+        pickle.dump(positions, file)
+    with open(f'messages_{server_id}.pickle', 'wb') as file:
+        pickle.dump(messages, file)
+    return
+
+
+def save_data_locally():
+    save_login_data_locally()
+    save_market_data_locally()
+    return
+
+
 def post_order(username, dir, symbol, sgn, price, size):
     global open_orders, order_book, messages
     if size == 0:
@@ -152,7 +181,7 @@ def post_order(username, dir, symbol, sgn, price, size):
         open_orders[symbol][dir][price] = [[username, size]]
         order_book[symbol][dir][price] = size
 
-    update_data()
+    # update_data()
     return
 
 
@@ -176,7 +205,7 @@ def match_trade(
 
     # Update user information
     update_positions(username, symbol, sgn, opp_sgn, price, size)
-    update_data()
+    # update_data()
 
     # If the user is the counterparty who posted the trade (maker)
     if order_was_taken:
@@ -200,7 +229,7 @@ def match_trade(
         else:
             del order_book[symbol][dir][price]
 
-        update_data()
+        # update_data()
 
     if order_was_taken:
         print(f"Order book after match: \n {order_book[symbol]}\n")
@@ -211,26 +240,28 @@ def match_trade(
 
 def update_data():
     """
-    Sends the current dictionary of the order book, user online status, user passwords, user positions, and user messages to each of the servers.
+    If current server is the leader, each time an update to the data occurs, 
+    saves the data locally and
+    sends the open orders, order book, user online status, user passwords, 
+    user positions, and user messages to each of the servers.
     """
     global open_orders, order_book, user_status, passwords, positions, messages, server_id
-    if leader != server_id:
+
+    if leader_id != server_id:
         return
+
     for id, alive in enumerate(active_servers):
-        if alive and id != leader and id != server_id:
+        # If the other server is alive and not the leader
+        if alive and id != leader_id and id != server_id:
             channel = grpc.insecure_channel(address_list[id])
             stub = pb2_grpc.ChatStub(channel)
             try:
-                save_data(
-                    open_orders,
-                    order_book,
-                    user_status,
-                    passwords,
-                    positions,
-                    messages,
-                    file_name,
-                )
-                stub.Send(
+                # Saving data
+                print("Saving data locally...")
+                save_data_locally()
+                print("Data saved.")
+                print(f"Sending data to server {id}...")
+                stub.SendServerData(
                     pb2.ServerData(
                         open_orders=json.dumps(open_orders),
                         order_book=json.dumps(order_book),
@@ -245,15 +276,31 @@ def update_data():
                 active_servers[id] = False
 
 
+def listen_server_messages(stub, username):
+    """
+    Receives async messages from other clients.
+    """
+    server_data = stub.ReceiveServerData(
+        pb2.ReceiveServerData(username=username))
+
+    try:
+        while True:
+            m = next(messages)
+            print(m.message)
+    except:
+        return
+
+
 class ChatServicer(pb2_grpc.ChatServicer):
     def Heartbeat(self, request, context):
-        return pb2.HeartbeatResponse(leader=leader)
+        return pb2.HeartbeatResponse(leader=leader_id)
 
-    def Send(self, order, context):
+    def SendServerData(self, order, context):
         """
-        Send updated data to the databases.
+        Send updated server data to the other servers.
         """
         global open_orders, order_book, user_status, passwords, positions, messages
+        print(order.open_orders)
         open_orders = json.loads(order.open_orders)
         order_book = json.loads(order.order_book)
         user_status = json.loads(order.user_status)
@@ -261,18 +308,10 @@ class ChatServicer(pb2_grpc.ChatServicer):
         positions = json.loads(order.positions)
         messages = json.loads(order.messages)
 
-        save_data(
-            open_orders,
-            order_book,
-            user_status,
-            passwords,
-            positions,
-            messages,
-            file_name,
-        )
+        # save_data_locally()
         return pb2.UserResponse()
 
-    def ServerResponse(self, order, context):
+    def SendClientOrder(self, order, context):
         """
         Manage the server's response to user input.
         """
@@ -286,25 +325,20 @@ class ChatServicer(pb2_grpc.ChatServicer):
             order.size,
         )
 
-    def ClientMessages(self, username, context):
+    def ReceiveClientMessages(self, username, context):
         """
         Return the client's pending messages, and update the data accordingly.
         """
         username = username.username
 
-        # Shouldn't need this
-        # if user not in user_status:
-        #     user_status.append(username)
-        #     update_data()
-
         while username in messages.keys():
             for message in messages[username]:
                 yield pb2.Response(response=message)
             messages[username] = []
-        update_data()
+        # update_data()
 
-    def Leader(self, request, context):
-        return pb2.LeaderResponse(leader=leader)
+    def FindLeader(self, request, context):
+        return pb2.LeaderResponse(leader=leader_id)
 
 
 def login(username, password):
@@ -319,7 +353,7 @@ def login(username, password):
     else:
         response = "Success: Account " + username + " logged in."
         user_status[username] = True
-        update_data()
+        # update_data()
     return response
 
 
@@ -334,40 +368,38 @@ def create_account(username, password):
     passwords[username] = password
     positions[username] = zero_positions.copy()
     messages[username] = []
-    update_data()
+    # update_data()
     return "Success: Account " + username + " created and logged in."
 
 
-"""
-Password criteria:
-- minumum of 8 characters
-- at least 1 uppercase letter
-- at least 1 lowercase letter
-- at least 1 numerical digit
-- at least and 1 character from _, @, or $
-"""
-
-
 def valid_password(password):
-    l, u, p, d = 0, 0, 0, 0
+    """
+    Checks whether the password satisfies the following criteria:
+    - Minumum of 8 characters
+    - At least 1 uppercase letter
+    - At least 1 lowercase letter
+    - At least 1 numerical digit
+    - At least and 1 character from ., !, _, @, or $
+    """
+    l, u, p, d = False, False, False, False
+
     if len(password) < 8:
         return False
-    for i in password:
-        if i.islower():
-            l += 1
-        if i.isupper():
-            u += 1
-        if i.isdigit():
-            d += 1
-        if i == '@' or i == '$' or i == '_':
-            p += 1
-    if l >= 1 and u >= 1 and p >= 1 and d >= 1 and l + p + u + d == len(password):
-        return True
-    return False
+
+    for c in password:
+        if c.islower():
+            l = True
+        if c.isupper():
+            u = True
+        if c.isdigit():
+            d = True
+        if c == '@' or c == '$' or c == '_' or c == '.' or c == '!':
+            p = True
+
+    return l and u and p and d
 
 
 def trade_message(username, dir, symbol, price, size):
-    global messages
     action_past = "Bought" if dir == "buy" else "Sold"
     preposition = "for" if dir == "buy" else "at"
     return f"{action_past} {size} shares of {symbol} {preposition} ${price:.2f}/share."
@@ -375,10 +407,10 @@ def trade_message(username, dir, symbol, price, size):
 
 def post_message(username, dir, symbol, price, size):
     # Save dictionary data
-    with open('order_book_dump.pickle', 'wb') as file:
-        pickle.dump(order_book, file)
-    with open('positions.pickle', 'wb') as file:
-        pickle.dump(positions, file)
+    # with open('order_book_dump.pickle', 'wb') as file:
+    #     pickle.dump(order_book, file)
+    # with open('positions.pickle', 'wb') as file:
+    #     pickle.dump(positions, file)
 
     preposition = "for" if dir == "buy" else "at"
     return f"Posted an order to {dir} {size} shares of {symbol} {preposition} ${price:.2f}/share."
@@ -405,9 +437,9 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
     Handle the server's response to the input.
     """
     # If this server is not the leader, error.
-    global leader, server_id
+    global leader_id, server_id
     global user_status, passwords, positions, messages
-    if server_id != leader:
+    if server_id != leader_id:
         return pb2.Response(response=ERROR_NOT_LEADER)
 
     current_user = None
@@ -544,14 +576,19 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         else:
             response = ""
 
+    print("Saving data locally...")
+    save_data_locally()
+    print("Updating data...")
+    update_data()
+
     if response:
         # Save dictionary data
         print("ORDER BOOK")
         print(order_book)
-        with open('order_book_dump.pickle', 'wb') as file:
-            pickle.dump(order_book, file)
-        with open('positions.pickle', 'wb') as file:
-            pickle.dump(positions, file)
+        # with open('order_book_dump.pickle', 'wb') as file:
+        #     pickle.dump(order_book, file)
+        # with open('positions.pickle', 'wb') as file:
+        #     pickle.dump(positions, file)
 
         print(f'Sending response to server: "{response}" \n')
         return pb2.Response(response=response)
@@ -561,11 +598,12 @@ def send_heartbeat(stub, id):
     """
     Send heartbeat to the server.
     """
+    # Check if server is online
     try:
         response = stub.Heartbeat(pb2.HeartbeatRequest())
         active_servers[id] = True
-        global leader
-        leader = response.leader
+        global leader_id
+        leader_id = response.leader
     except:
         # print(f"Server currently down: {id}.") UNCOMMENT THIS?
         active_servers[id] = False
@@ -590,12 +628,12 @@ def check_leader():
     """
     Check if leader is currently active. If not, set a new leader.
     """
-    global leader, messages
-    if leader is None or not active_servers[leader]:
+    global leader_id, messages
+    if leader_id is None or not active_servers[leader_id]:
         for id, alive in enumerate(active_servers):
             if alive:
-                leader = id
-                print(f"The new leader is {leader}")
+                leader_id = id
+                print(f"The new leader is {leader_id}")
                 return
         # No leaders found
         print("Error: No active servers.")
