@@ -24,13 +24,13 @@ class ChatStub(object):
                 request_serializer=chatapp__pb2.HeartbeatRequest.SerializeToString,
                 response_deserializer=chatapp__pb2.HeartbeatResponse.FromString,
                 )
-        self.SendClientOrder = channel.unary_unary(
-                '/Chat/SendClientOrder',
+        self.RequestClientOrder = channel.unary_unary(
+                '/Chat/RequestClientOrder',
                 request_serializer=chatapp__pb2.ClientOrder.SerializeToString,
                 response_deserializer=chatapp__pb2.Response.FromString,
                 )
-        self.ReceiveClientMessages = channel.unary_stream(
-                '/Chat/ReceiveClientMessages',
+        self.SendClientMessages = channel.unary_stream(
+                '/Chat/SendClientMessages',
                 request_serializer=chatapp__pb2.Username.SerializeToString,
                 response_deserializer=chatapp__pb2.Response.FromString,
                 )
@@ -58,14 +58,14 @@ class ChatServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SendClientOrder(self, request, context):
+    def RequestClientOrder(self, request, context):
         """Generate server response to user order
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ReceiveClientMessages(self, request, context):
+    def SendClientMessages(self, request, context):
         """Send messages between clients
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -92,13 +92,13 @@ def add_ChatServicer_to_server(servicer, server):
                     request_deserializer=chatapp__pb2.HeartbeatRequest.FromString,
                     response_serializer=chatapp__pb2.HeartbeatResponse.SerializeToString,
             ),
-            'SendClientOrder': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendClientOrder,
+            'RequestClientOrder': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestClientOrder,
                     request_deserializer=chatapp__pb2.ClientOrder.FromString,
                     response_serializer=chatapp__pb2.Response.SerializeToString,
             ),
-            'ReceiveClientMessages': grpc.unary_stream_rpc_method_handler(
-                    servicer.ReceiveClientMessages,
+            'SendClientMessages': grpc.unary_stream_rpc_method_handler(
+                    servicer.SendClientMessages,
                     request_deserializer=chatapp__pb2.Username.FromString,
                     response_serializer=chatapp__pb2.Response.SerializeToString,
             ),
@@ -152,7 +152,7 @@ class Chat(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def SendClientOrder(request,
+    def RequestClientOrder(request,
             target,
             options=(),
             channel_credentials=None,
@@ -162,14 +162,14 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Chat/SendClientOrder',
+        return grpc.experimental.unary_unary(request, target, '/Chat/RequestClientOrder',
             chatapp__pb2.ClientOrder.SerializeToString,
             chatapp__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ReceiveClientMessages(request,
+    def SendClientMessages(request,
             target,
             options=(),
             channel_credentials=None,
@@ -179,7 +179,7 @@ class Chat(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/Chat/ReceiveClientMessages',
+        return grpc.experimental.unary_stream(request, target, '/Chat/SendClientMessages',
             chatapp__pb2.Username.SerializeToString,
             chatapp__pb2.Response.FromString,
             options, channel_credentials,

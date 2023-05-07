@@ -83,65 +83,6 @@ ERROR_NOT_LEADER = "Error: server is not the leader."
 default_sleep_time = 3
 
 
-def save_data(
-    open_orders, order_book, user_status, passwords, positions, messages, file_name
-):
-    """
-    Store the current dictionary of the order book, user online status, user passwords, user positions, and user messages.
-    """
-
-    # Store open orders
-    with open(f"open_orders_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for symbol in symbol_list:
-            for dir in dir_list:
-                for price in open_orders[symbol][dir]:
-                    for username, size in open_orders[symbol][dir][price]:
-                        csv_writer.writerow(
-                            [symbol] + [dir] + [price] + [username] + [size]
-                        )
-
-    # Store order book
-    with open(f"order_book_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for symbol in symbol_list:
-            for dir in dir_list:
-                for price, size in list(order_book[symbol][dir].items()):
-                    csv_writer.writerow([symbol] + [dir] + [price] + [size])
-
-    # Store user status
-    with open(f"user_status_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for username, online in list(user_status.items()):
-            csv_writer.writerow([username] + [online])
-
-    # Store passwords
-    with open(f"passwords_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for username, password in list(passwords.items()):
-            csv_writer.writerow([username] + [password])
-
-    # Store positions
-    with open(f"positions_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for user in positions.keys():
-            for symbol, position in list(positions[username].items()):
-                csv_writer.writerow([username] + [symbol] + [position])
-
-    # Store message queue
-    with open(f"messages_{file_name}.csv", "w+") as f:
-        csv_writer = csv.writer(f)
-
-        for username, message_list in list(messages.items()):
-            for message in message_list:
-                csv_writer.writerow([username] + [message])
-
-
 def save_login_data_locally():
     global user_status, passwords, server_id
     with open(f'user_status_{server_id}.pickle', 'wb') as file:
@@ -184,7 +125,7 @@ def post_order(username, dir, symbol, sgn, price, size):
         open_orders[symbol][dir][price] = [[username, size]]
         order_book[symbol][dir][price] = size
 
-    # update_data()
+    # send_server_data_to_servers()
     return
 
 
@@ -208,7 +149,7 @@ def match_trade(
 
     # Update user information
     update_positions(username, symbol, sgn, opp_sgn, price, size)
-    # update_data()
+    # send_server_data_to_servers()
 
     # If the user is the counterparty who posted the trade (maker)
     if order_was_taken:
@@ -232,7 +173,7 @@ def match_trade(
         else:
             del order_book[symbol][dir][price]
 
-        # update_data()
+        # send_server_data_to_servers()
 
     if order_was_taken:
         print(f"Order book after match: \n {order_book[symbol]}\n")
@@ -241,7 +182,7 @@ def match_trade(
     return trade_message(username, dir, symbol, price, size)
 
 
-def update_data():
+def send_server_data_to_servers():
     """
     If current server is the leader, each time an update to the data occurs, 
     saves the data locally and
@@ -259,10 +200,6 @@ def update_data():
             channel = grpc.insecure_channel(address_list[id])
             stub = pb2_grpc.ChatStub(channel)
             try:
-                # Saving data
-                print("Saving data locally...")
-                save_data_locally()
-                print("Data saved.")
                 print(f"Sending data to server {id}...")
                 stub.SendServerData(
                     pb2.ServerData(
@@ -277,21 +214,6 @@ def update_data():
             except:
                 print(f"Server failure: {id}")
                 active_servers[id] = False
-
-
-def listen_server_messages(stub, username):
-    """
-    Receives async messages from other clients.
-    """
-    server_data = stub.ReceiveServerData(
-        pb2.ReceiveServerData(username=username))
-
-    try:
-        while True:
-            m = next(messages)
-            print(m.message)
-    except:
-        return
 
 
 class ChatServicer(pb2_grpc.ChatServicer):
@@ -314,7 +236,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
         # save_data_locally()
         return pb2.UserResponse()
 
-    def SendClientOrder(self, order, context):
+    def RequestClientOrder(self, order, context):
         """
         Manage the server's response to user input.
         """
@@ -328,7 +250,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
             order.size,
         )
 
-    def ReceiveClientMessages(self, username, context):
+    def SendClientMessages(self, username, context):
         """
         Return the client's pending messages, and update the data accordingly.
         """
@@ -338,7 +260,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
             for message in messages[username]:
                 yield pb2.Response(response=message)
             messages[username] = []
-        # update_data()
+        # send_server_data_to_servers()
 
     def FindLeader(self, request, context):
         return pb2.LeaderResponse(leader=leader_id)
@@ -356,7 +278,7 @@ def login(username, password):
     else:
         response = "Success: Account " + username + " logged in."
         user_status[username] = True
-        # update_data()
+        # send_server_data_to_servers()
     return response
 
 
@@ -371,7 +293,7 @@ def create_account(username, password):
     passwords[username] = password
     positions[username] = zero_positions.copy()
     messages[username] = []
-    # update_data()
+    # send_server_data_to_servers()
     return "Success: Account " + username + " created and logged in."
 
 
@@ -581,8 +503,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     print("Saving data locally...")
     save_data_locally()
-    print("Updating data...")
-    update_data()
+    print("Sending server data to other servers...")
+    send_server_data_to_servers()
 
     if response:
         # Save dictionary data

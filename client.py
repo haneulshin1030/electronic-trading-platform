@@ -351,7 +351,7 @@ class CustomerClient(tk.Frame):
         price = float(self.price_input.get())
         size = int(self.quantity_input.get())
 
-        response = self.stub.SendClientOrder(
+        response = self.stub.RequestClientOrder(
             pb2.ClientOrder(
                 opcode=opcode,
                 username=username,
@@ -381,7 +381,7 @@ class CustomerClient(tk.Frame):
         """
         Listen for messages from other clients.
         """
-        messages = stub.ReceiveClientMessages(pb2.Username(username=username))
+        messages = stub.SendClientMessages(pb2.Username(username=username))
 
         try:
             while True:
@@ -494,7 +494,7 @@ def main():
             print("Please select a password with a minumum of 8 characters and at least one uppercase letter, one lowercase letter, one numerical digit, and one character from ., !, _, @, or $.")
             password = input("Password: ")
 
-        response = stub.SendClientOrder(
+        response = stub.RequestClientOrder(
             pb2.ClientOrder(
                 opcode=opcode,
                 username=username,
@@ -559,7 +559,7 @@ def main():
                         print("Error: Invalid command.", flush=True)
                     continue
 
-                response = stub.SendClientOrder(
+                response = stub.RequestClientOrder(
                     pb2.ClientOrder(
                         opcode=opcode,
                         username=username,
@@ -590,7 +590,7 @@ def main():
         # Exception for if the user does a keyboard interrupt.
         except KeyboardInterrupt:
             try:
-                response = stub.SendClientOrder(
+                response = stub.RequestClientOrder(
                     pb2.ClientOrder(
                         opcode="except",
                         username=username,

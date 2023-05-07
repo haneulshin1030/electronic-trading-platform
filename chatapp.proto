@@ -7,9 +7,9 @@ service Chat {
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
 
   // Generate server response to user order
-  rpc SendClientOrder (ClientOrder) returns (Response) {}
+  rpc RequestClientOrder (ClientOrder) returns (Response) {}
   // Send messages between clients
-  rpc ReceiveClientMessages (Username) returns (stream Response) {}
+  rpc SendClientMessages (Username) returns (stream Response) {}
 
   // Query for the current leader server
   rpc FindLeader (LeaderRequest) returns (LeaderResponse) {}
