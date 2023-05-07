@@ -178,7 +178,7 @@ class CustomerClient(tk.Frame):
         self.orderbook_buy_rows = 6
         self.orderbook_sell_rows = 6
 
-        for size, price in self.buy_orders:
+        for price, size in self.buy_orders:
             tk.Label(self.orderbook_window, text=price).grid(
                 # tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
                 row=self.orderbook_buy_rows, column=0)
@@ -193,7 +193,7 @@ class CustomerClient(tk.Frame):
 
         # add most expensive 10 sell orders
         # for price in list(sell_orders.keys())[:10]:
-        for size, price in self.sell_orders:
+        for price, size in self.sell_orders:
             # size = sell_orders[price]
             # tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
             tk.Label(self.orderbook_window, text=price).grid(
@@ -226,9 +226,9 @@ class CustomerClient(tk.Frame):
             self.orderbook_buy_rows = 6
             self.orderbook_sell_rows = 6
 
-            print(self.buy_orders)
-            print(self.sell_orders)
-            for size, price in self.buy_orders:
+            # print(self.buy_orders)
+            # print(self.sell_orders)
+            for price, size in self.buy_orders:
                 # size = buy_orders[price]
                 tk.Label(self.orderbook_window, text=price).grid(
                     # tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
@@ -242,7 +242,7 @@ class CustomerClient(tk.Frame):
                     row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
                 self.orderbook_buy_rows += 2
 
-            for size, price in self.sell_orders:
+            for price, size in self.sell_orders:
                 # size = sell_orders[price]
                 # tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
                 tk.Label(self.orderbook_window, text=price).grid(
@@ -258,7 +258,9 @@ class CustomerClient(tk.Frame):
 
                 # self.last_modified_order_book = self.current_modified_order_book
         except EOFError:
-            self.root.after(100, self.update_everything)
+            pass
+        
+        self.root.after(100, self.update_everything)
 
     def attempt_to_post_order(self, opcode, username, password, dir, symbol, price, size):
         global leader_id
@@ -403,7 +405,7 @@ class CustomerClient(tk.Frame):
                         buy_orders) if buy_orders != '[]' else []
                     self.sell_orders = ast.literal_eval(
                         sell_orders) if sell_orders != '[]' else []
-                    self.root.after(100, self.update_everything)
+                    # self.root.after(100, self.update_everything)
                     # self.update_everything()
                 else:
                     self.add_message(response.response + "\n")

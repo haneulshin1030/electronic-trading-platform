@@ -95,6 +95,9 @@ ERROR_NOT_LEADER = "Error: server is not the leader."
 # The time each server waits before checking if the leader is active
 default_sleep_time = 1
 
+lock = threading.Lock()
+
+
 
 def save_data_locally(user_data_updated=False):
     global open_orders, order_book, user_order_book, positions, messages, server_id
@@ -375,8 +378,6 @@ def find_best_price(opp, symbol, price):
         if price < best_price:
             return None
     else:
-        print(open_orders[symbol])
-        print(opp)
         best_price = max(open_orders[symbol][opp].keys())
         if price > best_price:
             return None
@@ -440,7 +441,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         trade_size = 0
         cumulative_price = 0
 
-        # TODO: Lock?
+        lock.acquire()
 
         while size - trade_size > 0:
             print("Matching trades...")
@@ -454,8 +455,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
             best_price = find_best_price(opp, symbol, price)
             if best_price is None:
                 break
-            print(order_book)
-            print(open_orders)
+            # print(order_book)
+            # print(open_orders)
             print(f"Current best price: {best_price}")
 
             while size - trade_size > 0 and best_price in open_orders[symbol][opp]:
@@ -514,7 +515,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
             print(f"{post_message_success}\n")
             print(f"Open orders: \n {open_orders[symbol]}\n")
             response += ("\n" if trade_size > 0 else "") + post_message_success
-        # Unlock?
+
+        lock.release()
 
     # Exception
     elif opcode == "except":
