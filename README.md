@@ -12,7 +12,7 @@ Install all necessary packages using this command:
 Compile the .proto file and generate the stubs:
 ```python3 -m grpc_tools.protoc --proto_path=. ./chatapp.proto --python_out=. --grpc_python_out=. ```
 
-To run each server, execute `python3 server.py`.
+To run the exchange server, execute `python3 server.py`.
 
 <!-- To run each server, execute `python3 server.py --server i` for `i` in `[0, 1, 2]`. -->
 
