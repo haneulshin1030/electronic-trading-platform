@@ -41,8 +41,8 @@ leader_id = None
 # Current live servers.
 active_servers = [None, None, None]
 
-# Update ID, indicating the ID of the data update. Incremented for each data update.
-data_status_id = 0
+# Order book status ID, indicating the ID of the order book status. Incremented for each update to the order book.
+order_book_status_id = 0
 
 ########## MARKET INFORMATION ##########
 
@@ -66,6 +66,11 @@ open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
 order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()}
               for symbol in symbol_list}
 
+# Dictionary mapping symbol -> {buy -> bid list, sell -> offer list}
+# Where the bid and offer lists are of the form [[price_1, quantity_1], ..., [price_n, quantity_n]]
+# sorted in decreasing order of competitive pricing
+user_order_book = {symbol: {"buy": [], "sell": []}
+                   for symbol in symbol_list}
 
 ########## USER INFORMATION ##########
 
@@ -89,11 +94,13 @@ default_sleep_time = 1
 
 
 def save_data_locally(user_data_updated=False):
-    global open_orders, order_book, positions, messages, server_id, data_status_id
+    global open_orders, order_book, user_order_book, positions, messages, server_id
     with open(f'open_orders_{server_id}.pickle', 'wb') as file:
         pickle.dump(open_orders, file)
     with open(f'order_book_{server_id}.pickle', 'wb') as file:
         pickle.dump(order_book, file)
+    with open(f'user_order_book_{server_id}.pickle', 'wb') as file:
+        pickle.dump(user_order_book, file)
 
     with open(f'positions_{server_id}.pickle', 'wb') as file:
         pickle.dump(positions, file)
@@ -107,7 +114,6 @@ def save_data_locally(user_data_updated=False):
         with open(f'passwords_{server_id}.pickle', 'wb') as file:
             pickle.dump(passwords, file)
 
-    data_status_id += 1
     return
 
 
@@ -132,6 +138,7 @@ def update_positions(username, symbol, sgn, opp_sgn, price, size):
     print(f"Updating {username}'s position in {symbol} by {sgn} * {size}...")
     positions[username][symbol] += sgn * size
     positions[username]["USD"] += opp_sgn * size * price
+    print("Positions updated.")
     return
 
 
@@ -152,7 +159,6 @@ def match_trade(
 
     # Update user information
     update_positions(username, symbol, sgn, opp_sgn, price, size)
-    # send_server_data_to_servers()
 
     # If the user is the counterparty who posted the trade (maker)
     if order_was_taken:
@@ -175,8 +181,6 @@ def match_trade(
             order_book[symbol][dir][price] -= size
         else:
             del order_book[symbol][dir][price]
-
-        # send_server_data_to_servers()
 
     if order_was_taken:
         print(f"Order book after match: \n {order_book[symbol]}\n")
@@ -225,10 +229,6 @@ def send_server_data_to_servers(user_data_updated=False):
                 active_servers[id] = False
 
 
-def send_order_book_to_servers():
-    global order_book
-
-
 class ChatServicer(pb2_grpc.ChatServicer):
     def Heartbeat(self, request, context):
         return pb2.HeartbeatResponse(leader=leader_id)
@@ -263,10 +263,8 @@ class ChatServicer(pb2_grpc.ChatServicer):
         """
         Send updated server client data to the other servers.
         """
-        global order_book
-        order_book = json.loads(client_market_data.order_book)
-
-        return pb2.ServerResponse()
+        global user_order_book
+        return pb2.ClientMarketData(user_order_book=json.dumps(user_order_book))
 
     def RequestClientOrder(self, order, context):
         """
@@ -293,7 +291,6 @@ class ChatServicer(pb2_grpc.ChatServicer):
             for message in messages[username]:
                 yield pb2.Response(response=message)
             messages[username] = []
-        # send_server_data_to_servers()
 
     def FindLeader(self, request, context):
         return pb2.LeaderResponse(leader=leader_id)
@@ -311,7 +308,6 @@ def login(username, password):
     else:
         response = "Success: Account " + username + " logged in."
         user_status[username] = True
-        # send_server_data_to_servers()
     return response
 
 
@@ -326,7 +322,6 @@ def create_account(username, password):
     passwords[username] = password
     positions[username] = zero_positions.copy()
     messages[username] = []
-    # send_server_data_to_servers()
     return "Success: Account " + username + " created and logged in."
 
 
@@ -534,6 +529,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
     save_data_locally(user_data_updated)
     print("Sending server data to other servers...")
     send_server_data_to_servers(user_data_updated)
+    if symbol:
+        send_order_book_to_clients(symbol)
 
     if response:
         # Save dictionary data
@@ -583,13 +580,18 @@ def reformat_data():
 
     for symbol in symbol_list:
         for dir in dir_list:
-            open_orders[symbol][dir] = {float(price): [[user, int(float(
-                size))] for user, size in order_list] for price, order_list in open_orders[symbol][dir].items()}
+            open_orders[symbol][dir] = SortedDict({float(price): [[user, int(float(
+                size))] for user, size in order_list] for price, order_list in open_orders[symbol][dir].items()})
 
     for symbol in symbol_list:
         for dir in dir_list:
-            order_book[symbol][dir] = {float(price): int(float(
-                size)) for price, size in order_book[symbol][dir].items()}
+            order_book[symbol][dir] = SortedDict({float(price): int(float(
+                size)) for price, size in order_book[symbol][dir].items()})
+
+    # for symbol in symbol_list:
+    #     for dir in dir_list:
+    #         user_order_book[symbol][dir] = [(float(price), int(
+    #             float(size))) for price, size in user_order_book[symbol][dir]]
 
     for username in user_status.keys():
         positions[username] = {symbol: int(float(position))
@@ -598,10 +600,33 @@ def reformat_data():
     return
 
 
-def send_clients_new_leader():
+def send_new_leader_to_clients():
     global leader_id, messages
     for username in user_status.keys():
         messages[username].append(f"Connecting to server {leader_id}...")
+    return
+
+
+def send_order_book_to_clients(symbol):
+    global user_order_book, order_book, messages, order_book_status_id
+
+    print("Sending order book to clients...")
+    n = len(order_book[symbol]['buy'])
+
+    user_order_book[symbol]['buy'] = [order_book[symbol]
+                                      ['buy'].peekitem(i) for i in range(n - 1, -1, -1)[-10:]]
+
+    m = len(order_book[symbol]['sell'])
+
+    user_order_book[symbol]['sell'] = [order_book[symbol]
+                                       ['sell'].peekitem(i) for i in range(m)[:10]]
+
+    for username in user_status.keys():
+        messages[username].append(
+            f"Update: {user_order_book[symbol]['buy']};{user_order_book[symbol]['sell']}")
+
+    print(f"User Order Book:\n {user_order_book}")
+    order_book_status_id += 1
     return
 
 
@@ -617,7 +642,7 @@ def check_leader():
                 print(f"The new leader is {leader_id}")
                 if server_id == leader_id:
                     reformat_data()
-                    send_clients_new_leader()
+                    send_new_leader_to_clients()
                 return
         # No leaders found
         print("Error: No active servers.")
@@ -662,15 +687,23 @@ def start_server():
     # Otherwise, if another server was already alive and sending updates, then it will
     # send this server the updated data now that it is online.
     if Path(f'user_status_{server_id}.pickle').is_file():
-        global open_orders, order_book, user_status, passwords, positions, messages
+        global open_orders, order_book, user_order_book, user_status, passwords, positions, messages
         with open(f'user_status_{server_id}.pickle', 'rb') as file:
             user_status = pickle.load(file)
         with open(f'passwords_{server_id}.pickle', 'rb') as file:
             passwords = pickle.load(file)
         with open(f'open_orders_{server_id}.pickle', 'rb') as file:
             open_orders = pickle.load(file)
+            open_orders = {symbol: {"buy": SortedDict(open_orders[symbol]['buy']), "sell": SortedDict(open_orders[symbol]['sell'])}
+                           for symbol in symbol_list}
         with open(f'order_book_{server_id}.pickle', 'rb') as file:
             order_book = pickle.load(file)
+            order_book = {symbol: {"buy": SortedDict(order_book[symbol]['buy']), "sell": SortedDict(order_book[symbol]['sell'])}
+                          for symbol in symbol_list}
+        # with open(f'user_order_book_{server_id}.pickle', 'rb') as file:
+        #     user_order_book = pickle.load(file)
+        for symbol in symbol_list:
+            send_order_book_to_clients(symbol)
         with open(f'positions_{server_id}.pickle', 'rb') as file:
             positions = pickle.load(file)
         with open(f'messages_{server_id}.pickle', 'rb') as file:

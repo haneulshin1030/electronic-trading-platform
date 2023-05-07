@@ -26,8 +26,8 @@ class ChatStub(object):
                 )
         self.ReceiveClientMarketData = channel.unary_unary(
                 '/Chat/ReceiveClientMarketData',
-                request_serializer=chatapp__pb2.ClientMarketData.SerializeToString,
-                response_deserializer=chatapp__pb2.ServerResponse.FromString,
+                request_serializer=chatapp__pb2.Symbol.SerializeToString,
+                response_deserializer=chatapp__pb2.ClientMarketData.FromString,
                 )
         self.Heartbeat = channel.unary_unary(
                 '/Chat/Heartbeat',
@@ -116,8 +116,8 @@ def add_ChatServicer_to_server(servicer, server):
             ),
             'ReceiveClientMarketData': grpc.unary_unary_rpc_method_handler(
                     servicer.ReceiveClientMarketData,
-                    request_deserializer=chatapp__pb2.ClientMarketData.FromString,
-                    response_serializer=chatapp__pb2.ServerResponse.SerializeToString,
+                    request_deserializer=chatapp__pb2.Symbol.FromString,
+                    response_serializer=chatapp__pb2.ClientMarketData.SerializeToString,
             ),
             'Heartbeat': grpc.unary_unary_rpc_method_handler(
                     servicer.Heartbeat,
@@ -195,8 +195,8 @@ class Chat(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Chat/ReceiveClientMarketData',
-            chatapp__pb2.ClientMarketData.SerializeToString,
-            chatapp__pb2.ServerResponse.FromString,
+            chatapp__pb2.Symbol.SerializeToString,
+            chatapp__pb2.ClientMarketData.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

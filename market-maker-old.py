@@ -6,8 +6,6 @@ import os
 import pickle
 import shutil
 import random
-import json
-import ast
 import numpy as np
 
 from _thread import *
@@ -26,8 +24,6 @@ PORT = 8000
 # Record mapping index -> replica.
 server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 
-# List of universe of symbols
-symbol_list = ["AAPL", "TSLA", "USD"]
 
 # # Global variable to store CustomerClient object
 # customer_client = None
@@ -44,11 +40,6 @@ class CustomerClient(tk.Frame):
         self.orderbook_window = -1
         self.stock_symbol = ""
 
-        # self.user_order_book = {symbol: {"buy": [], "sell": []}
-        # for symbol in symbol_list}
-        self.buy_orders = []
-        self.sell_orders = []
-
         # Listen for messages
         self.listen_thread = threading.Thread(
             target=(self.listen_for_messages), args=(username,))
@@ -56,7 +47,7 @@ class CustomerClient(tk.Frame):
 
         # Create root window: Customer Client inputs
         self.root = tk.Tk()
-        self.root.title('Market Maker Client')
+        self.root.title('Customer Client')
         self.root.geometry('400x250')
 
         tk.Label(self.root, text="Stock Symbol:").grid(
@@ -179,14 +170,50 @@ class CustomerClient(tk.Frame):
         self.orderbook_buy_rows = 6
         self.orderbook_sell_rows = 6
 
-        # self.update_order_book(self.stock_symbol)
-        self.render_order_book()
+        # duplicate order_book_dump into order_book_read
+        # this is to fix the pickle error of processing 1 file simultaneously
+        # from multiple parts of the code
+        shutil.copyfile(
+            f"order_book_{leader_id}.pickle", "order_book_read.pickle")
+
+        # show initial order_book
+        with open('order_book_read.pickle', 'rb') as f:
+            order_book = pickle.load(f)
+        # print(order_book)
+        buy_orders = order_book[self.stock_symbol]['buy']
+        sell_orders = order_book[self.stock_symbol]['sell']
+
+        # add cheapest 10 buy orders
+        for price in reversed(list(buy_orders.keys())[-10:]):
+            size = buy_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
+                row=self.orderbook_buy_rows, column=0)
+            tk.Label(self.orderbook_window, text=str(size)).grid(
+                row=self.orderbook_buy_rows, column=1)
+            ttk.Separator(self.orderbook_window, orient="vertical").grid(
+                row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
+            ttk.Separator(self.orderbook_window, orient="horizontal").grid(
+                row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
+            self.orderbook_buy_rows += 2
+
+        # add most expensive 10 sell orders
+        for price in list(sell_orders.keys())[:10]:
+            size = sell_orders[price]
+            tk.Label(self.orderbook_window, text=str(round(price, 2))).grid(
+                row=self.orderbook_sell_rows, column=3)
+            tk.Label(self.orderbook_window, text=str(size)).grid(
+                row=self.orderbook_sell_rows, column=4)
+            ttk.Separator(self.orderbook_window, orient="vertical").grid(
+                row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
+            ttk.Separator(self.orderbook_window, orient="horizontal").grid(
+                row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
+            self.orderbook_sell_rows += 2
 
         # initialize the last modification time
-        # self.last_modified_order_book = os.path.getmtime(
-        # f"order_book_{leader_id}.pickle")
+        self.last_modified_order_book = os.path.getmtime(
+            f"order_book_{leader_id}.pickle")
 
-        # self.root.after(10, self.update_everything)
+        self.root.after(10, self.update_everything)
 
     def update_everything(self):
         # Update order book
@@ -240,50 +267,8 @@ class CustomerClient(tk.Frame):
                     self.last_modified_order_book = self.current_modified_order_book
             except EOFError:
                 pass
-        return 'Done'
-        # self.root.after(100, self.update_everything)
 
-    # def update_order_book(self, symbol):
-    #     client_market_data = self.stub.ReceiveClientMarketData(
-    #         pb2.Symbol(symbol=symbol))
-    #     self.user_order_book = json.loads(client_market_data.user_order_book)
-    #     print(self.user_order_book)
-
-    def render_order_book(self):
-        try:
-            if self.orderbook_window != -1:
-                for widget in self.orderbook_window.winfo_children():
-                    widget.destroy()
-            # Create the table headers and lines
-            self.init_orderbook()
-            self.orderbook_buy_rows = 6
-            self.orderbook_sell_rows = 6
-
-            # Sort order_book, show 10 rows max
-            for price, size in self.buy_orders:
-                tk.Label(self.orderbook_window, text=price).grid(
-                    row=self.orderbook_buy_rows, column=0)
-                tk.Label(self.orderbook_window, text=size).grid(
-                    row=self.orderbook_buy_rows, column=1)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(
-                    row=self.orderbook_buy_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(
-                    row=self.orderbook_buy_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_buy_rows += 2
-
-            for price, size in self.sell_orders:
-                tk.Label(self.orderbook_window, text=price).grid(
-                    row=self.orderbook_sell_rows, column=3)
-                tk.Label(self.orderbook_window, text=size).grid(
-                    row=self.orderbook_sell_rows, column=4)
-                ttk.Separator(self.orderbook_window, orient="vertical").grid(
-                    row=self.orderbook_sell_rows, column=2, rowspan=1, sticky="ns")
-                ttk.Separator(self.orderbook_window, orient="horizontal").grid(
-                    row=self.orderbook_sell_rows+1, column=0, columnspan=5, sticky="ew")
-                self.orderbook_sell_rows += 2
-
-        except EOFError:
-            pass
+        self.root.after(100, self.update_everything)
 
     def attempt_to_post_order(self, opcode, username, password, dir, symbol, price, size):
         global leader_id
@@ -385,9 +370,8 @@ class CustomerClient(tk.Frame):
                     response = self.attempt_to_post_order(dir, username, password,
                                                           dir, symbol, price, size)
                     print_response(response.response)
-                    # self.add_message(response.response + "\n")
-                    time.sleep(0.5)
-            time.sleep(5)
+                    self.add_message(response.response + "\n")
+            time.sleep(0.5)
 
     def add_message(self, message):
         self.text_widget.insert(tk.END, message)
@@ -406,34 +390,11 @@ class CustomerClient(tk.Frame):
                 response = next(messages)
                 print_response(response.response)
                 # If new leader message
-
-                response_text = response.response
-                if response_text[:10] == "Connecting":
+                if (response.response)[:10] == "Connecting":
                     global leader_id
                     leader_id, self.stub = find_leader()
-                elif response_text[:6] == "Update":
-                    # print(response_text)
-                    order_lists = response_text[8:].split(';')
-                    buy_orders = order_lists[0]
-                    sell_orders = order_lists[1]
-                    # print(buy_orders, sell_orders)
-                    # print(type(buy_orders))
-                    # print(type(sell_orders))
-                    self.buy_orders = ast.literal_eval(
-                        buy_orders) if buy_orders != '[]' else []
-                    self.sell_orders = ast.literal_eval(
-                        buy_orders) if sell_orders != '[]' else []
-                    # print(buy_orders, sell_orders)
-                    done = self.update_everything()
-                    print(done)
-                    # self.render_order_book()
-                    # symbol = response_text[7: 7 + 4]
-                    # print("Hi!")
-                    # self.update_order_book(symbol)
-                    # self.render_order_book()
-                    # print("----------------")
                 else:
-                    self.add_message(response_text + "\n")
+                    self.add_message(response.response + "\n")
         except:
             return
 

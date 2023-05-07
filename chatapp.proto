@@ -4,7 +4,7 @@ service Chat {
   // Send updated versions of the message queue and user list to the other servers
   rpc ReceiveServerMarketData(ServerMarketData) returns (ServerResponse) {}
   rpc ReceiveServerClientData(ServerClientData) returns (ServerResponse) {}
-  rpc ReceiveClientMarketData(ClientMarketData) returns (ServerResponse) {}
+  rpc ReceiveClientMarketData(Symbol) returns (ClientMarketData) {}
 
   // Send heartbeat to other servers to indicate activity
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
@@ -43,7 +43,7 @@ message ServerClientData {
 }
 
 message ClientMarketData {
-  string order_book = 1;
+  string user_order_book = 1;
 }
 
 // Response message to user
@@ -66,6 +66,11 @@ message Response {
 message Username {
   string username = 1;
 }
+
+message Symbol {
+  string symbol = 1;
+}
+
 
 message LeaderRequest {
 }

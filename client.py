@@ -338,14 +338,6 @@ class CustomerClient(tk.Frame):
         response = self.attempt_to_post_order(opcode, username, password,
                                               dir, symbol, price, size)
 
-        # Real-time update message log
-        # order_message = "Posted an order to " + opcode + " " + \
-        #     str(size) + " shares of " + symbol + \
-        #     " for $" + str(price) + "/share.\n"
-        # self.add_message(order_message)
-
-        # ensure no duplicate Posted messages in non-matched case
-        # if response.response[0] != 'P':
         print_response(response.response)
         self.add_message(response.response + "\n")
 
