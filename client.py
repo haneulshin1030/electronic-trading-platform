@@ -38,7 +38,7 @@ class CustomerClient(tk.Frame):
 
         # Listen for messages
         listen_thread = threading.Thread(
-            target=(self.listen), args=(stub, username))
+            target=(self.listen_for_messages), args=(stub, username))
         listen_thread.start()
 
         # Create root window: Customer Client inputs
@@ -377,7 +377,7 @@ class CustomerClient(tk.Frame):
     def add_message(self, message):
         self.text_widget.insert(tk.END, message)
 
-    def listen(self, stub, username):
+    def listen_for_messages(self, stub, username):
         """
         Listen for messages from other clients.
         """
@@ -582,7 +582,7 @@ def main():
 
             # Start the listening thread.
             listen_thread = threading.Thread(
-                target=(customer_client.listen), args=(customer_client, stub, username))
+                target=(customer_client.listen_for_messages), args=(customer_client, stub, username))
             listen_thread.start()
 
             print("Redirected to a new server; please repeat your request.")

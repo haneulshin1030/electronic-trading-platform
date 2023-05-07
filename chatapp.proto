@@ -2,7 +2,10 @@ syntax = "proto3";
 
 service Chat {
   // Send updated versions of the message queue and user list to the other servers
-  rpc SendServerData(ServerData) returns (UserResponse) {}
+  rpc ReceiveServerMarketData(ServerMarketData) returns (ServerResponse) {}
+  rpc ReceiveServerClientData(ServerClientData) returns (ServerResponse) {}
+  rpc ReceiveClientMarketData(ClientMarketData) returns (ServerResponse) {}
+
   // Send heartbeat to other servers to indicate activity
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
 
@@ -27,13 +30,20 @@ message ClientOrder {
 }
 
 // The current message queue and the list of users
-message ServerData {
+message ServerClientData {
+  string user_status = 1;
+  string passwords = 2;
+}
+
+message ServerMarketData {
   string open_orders = 1;
   string order_book = 2;
-  string user_status = 3;
-  string passwords = 4;
-  string positions = 5;
-  string messages = 6;
+  string positions = 3;
+  string messages = 4;
+}
+
+message ClientMarketData {
+  string order_book = 1;
 }
 
 // Response message to user

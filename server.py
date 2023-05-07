@@ -10,6 +10,8 @@ import json
 import pickle
 import os
 import glob
+from pathlib import Path
+
 from sortedcontainers import SortedDict
 
 import chatapp_pb2 as pb2
@@ -38,6 +40,9 @@ leader_id = None
 
 # Current live servers.
 active_servers = [None, None, None]
+
+# Update ID, indicating the ID of the data update. Incremented for each data update.
+data_status_id = 0
 
 ########## MARKET INFORMATION ##########
 
@@ -83,17 +88,8 @@ ERROR_NOT_LEADER = "Error: server is not the leader."
 default_sleep_time = 3
 
 
-def save_login_data_locally():
-    global user_status, passwords, server_id
-    with open(f'user_status_{server_id}.pickle', 'wb') as file:
-        pickle.dump(user_status, file)
-    with open(f'passwords_{server_id}.pickle', 'wb') as file:
-        pickle.dump(passwords, file)
-    return
-
-
-def save_market_data_locally():
-    global open_orders, order_book, positions, messages, server_id
+def save_data_locally(user_data_updated=False):
+    global open_orders, order_book, positions, messages, server_id, data_status_id
     with open(f'open_orders_{server_id}.pickle', 'wb') as file:
         pickle.dump(open_orders, file)
     with open(f'order_book_{server_id}.pickle', 'wb') as file:
@@ -103,12 +99,15 @@ def save_market_data_locally():
         pickle.dump(positions, file)
     with open(f'messages_{server_id}.pickle', 'wb') as file:
         pickle.dump(messages, file)
-    return
 
+    if user_data_updated:
+        global user_status, passwords
+        with open(f'user_status_{server_id}.pickle', 'wb') as file:
+            pickle.dump(user_status, file)
+        with open(f'passwords_{server_id}.pickle', 'wb') as file:
+            pickle.dump(passwords, file)
 
-def save_data_locally():
-    save_login_data_locally()
-    save_market_data_locally()
+    data_status_id += 1
     return
 
 
@@ -124,8 +123,6 @@ def post_order(username, dir, symbol, sgn, price, size):
     else:
         open_orders[symbol][dir][price] = [[username, size]]
         order_book[symbol][dir][price] = size
-
-    # send_server_data_to_servers()
     return
 
 
@@ -182,7 +179,7 @@ def match_trade(
     return trade_message(username, dir, symbol, price, size)
 
 
-def send_server_data_to_servers():
+def send_server_data_to_servers(user_data_updated=False):
     """
     If current server is the leader, each time an update to the data occurs, 
     saves the data locally and
@@ -198,43 +195,68 @@ def send_server_data_to_servers():
         # If the other server is alive and not the leader
         if alive and id != leader_id and id != server_id:
             channel = grpc.insecure_channel(address_list[id])
-            stub = pb2_grpc.ChatStub(channel)
+            stub_for_other_server = pb2_grpc.ChatStub(channel)
             try:
                 print(f"Sending data to server {id}...")
-                stub.SendServerData(
-                    pb2.ServerData(
+                stub_for_other_server.ReceiveServerMarketData(
+                    pb2.ServerMarketData(
                         open_orders=json.dumps(open_orders),
                         order_book=json.dumps(order_book),
-                        user_status=json.dumps(user_status),
-                        passwords=json.dumps(passwords),
                         positions=json.dumps(positions),
-                        messages=json.dumps(messages),
+                        messages=json.dumps(messages)
                     )
                 )
+                if user_data_updated:
+                    stub_for_other_server.ReceiveServerClientData(
+                        pb2.ServerClientData(
+                            user_status=json.dumps(user_status),
+                            passwords=json.dumps(passwords)
+                        )
+                    )
+
             except:
                 print(f"Server failure: {id}")
                 active_servers[id] = False
+
+
+def send_order_book_to_servers():
+    global order_book
 
 
 class ChatServicer(pb2_grpc.ChatServicer):
     def Heartbeat(self, request, context):
         return pb2.HeartbeatResponse(leader=leader_id)
 
-    def SendServerData(self, order, context):
+    def ReceiveServerMarketData(self, server_market_data, context):
         """
-        Send updated server data to the other servers.
+        Send updated server market data to the other servers.
         """
-        global open_orders, order_book, user_status, passwords, positions, messages
-        print(order.open_orders)
-        open_orders = json.loads(order.open_orders)
-        order_book = json.loads(order.order_book)
-        user_status = json.loads(order.user_status)
-        passwords = json.loads(order.passwords)
-        positions = json.loads(order.positions)
-        messages = json.loads(order.messages)
+        global open_orders, order_book, positions, messages
+        open_orders = json.loads(server_market_data.open_orders)
+        order_book = json.loads(server_market_data.order_book)
+        positions = json.loads(server_market_data.positions)
+        messages = json.loads(server_market_data.messages)
 
-        # save_data_locally()
-        return pb2.UserResponse()
+        return pb2.ServerResponse()
+
+    def ReceiveServerClientData(self, server_client_data, context):
+        """
+        Send updated server client data to the other servers.
+        """
+        global user_status, passwords
+        user_status = json.loads(server_client_data.user_status)
+        passwords = json.loads(server_client_data.passwords)
+
+        return pb2.ServerResponse()
+
+    def ReceiveClientMarketData(self, client_market_data, context):
+        """
+        Send updated server client data to the other servers.
+        """
+        global order_book
+        order_book = json.loads(client_market_data.order_book)
+
+        return pb2.ServerResponse()
 
     def RequestClientOrder(self, order, context):
         """
@@ -367,12 +389,12 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
     if server_id != leader_id:
         return pb2.Response(response=ERROR_NOT_LEADER)
 
-    current_user = None
     response = None
+    user_data_updated = False
 
     # Create account.
     if opcode == "create":
-
+        user_data_updated = True
         # Check whether username is unique.
         if username in user_status:
             response = "Failure: Username already exists."
@@ -384,6 +406,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
     # Log in.
     elif opcode == "login":
+        user_data_updated = True
         response = login(username, password)
 
     # Post a user's order in the market and execute any matched trades
@@ -502,9 +525,9 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
             response = ""
 
     print("Saving data locally...")
-    save_data_locally()
+    save_data_locally(user_data_updated)
     print("Sending server data to other servers...")
-    send_server_data_to_servers()
+    send_server_data_to_servers(user_data_updated)
 
     if response:
         # Save dictionary data
@@ -597,19 +620,20 @@ def start_server():
     # If this is the only remaining server, then it will have all the updates
     # Otherwise, if another server was already alive and sending updates, then it will
     # send this server the updated data now that it is online.
-    global open_orders, order_book, user_status, passwords, positions, messages
-    with open(f'user_status_{server_id}.pickle', 'rb') as file:
-        user_status = pickle.load(file)
-    with open(f'passwords_{server_id}.pickle', 'rb') as file:
-        passwords = pickle.load(file)
-    with open(f'open_orders_{server_id}.pickle', 'rb') as file:
-        open_orders = pickle.load(file)
-    with open(f'order_book_{server_id}.pickle', 'rb') as file:
-        order_book = pickle.load(file)
-    with open(f'positions_{server_id}.pickle', 'rb') as file:
-        positions = pickle.load(file)
-    with open(f'messages_{server_id}.pickle', 'rb') as file:
-        messages = pickle.load(file)
+    if Path(f'user_status_{server_id}.pickle').is_file():
+        global open_orders, order_book, user_status, passwords, positions, messages
+        with open(f'user_status_{server_id}.pickle', 'rb') as file:
+            user_status = pickle.load(file)
+        with open(f'passwords_{server_id}.pickle', 'rb') as file:
+            passwords = pickle.load(file)
+        with open(f'open_orders_{server_id}.pickle', 'rb') as file:
+            open_orders = pickle.load(file)
+        with open(f'order_book_{server_id}.pickle', 'rb') as file:
+            order_book = pickle.load(file)
+        with open(f'positions_{server_id}.pickle', 'rb') as file:
+            positions = pickle.load(file)
+        with open(f'messages_{server_id}.pickle', 'rb') as file:
+            messages = pickle.load(file)
 
     global server
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
