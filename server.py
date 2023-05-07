@@ -11,12 +11,15 @@ import pickle
 import os
 import glob
 from pathlib import Path
+from _thread import *
 
 from sortedcontainers import SortedDict
 
 import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
 from concurrent import futures
+
+# lock = Lock()
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -702,12 +705,13 @@ def start_server():
                           for symbol in symbol_list}
         # with open(f'user_order_book_{server_id}.pickle', 'rb') as file:
         #     user_order_book = pickle.load(file)
-        for symbol in symbol_list:
-            send_order_book_to_clients(symbol)
+
         with open(f'positions_{server_id}.pickle', 'rb') as file:
             positions = pickle.load(file)
         with open(f'messages_{server_id}.pickle', 'rb') as file:
             messages = pickle.load(file)
+        for symbol in symbol_list:
+            send_order_book_to_clients(symbol)
 
     global server
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
