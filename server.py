@@ -135,6 +135,12 @@ def update_positions(username, symbol, sgn, opp_sgn, price, size):
     return
 
 
+def trade_message(username, dir, symbol, price, size):
+    action_past = "Bought" if dir == "buy" else "Sold"
+    preposition = "for" if dir == "buy" else "at"
+    return f"{action_past} {size} shares of {symbol} {preposition} ${price:.2f}/share."
+
+
 def match_trade(
     username, dir, symbol, sgn, opp_sgn, price, size, order_was_taken=False
 ):
@@ -280,6 +286,7 @@ class ChatServicer(pb2_grpc.ChatServicer):
         """
         Return the client's pending messages, and update the data accordingly.
         """
+
         username = username.username
 
         while username in messages.keys():
@@ -348,12 +355,6 @@ def valid_password(password):
             p = True
 
     return l and u and p and d
-
-
-def trade_message(username, dir, symbol, price, size):
-    action_past = "Bought" if dir == "buy" else "Sold"
-    preposition = "for" if dir == "buy" else "at"
-    return f"{action_past} {size} shares of {symbol} {preposition} ${price:.2f}/share."
 
 
 def post_message(username, dir, symbol, price, size):
@@ -612,6 +613,11 @@ def check_leader():
                 return
         # No leaders found
         print("Error: No active servers.")
+
+        # TODO: remove this eventually
+        for file in glob.glob("*.pickle"):
+            os.remove(file)
+
         kill_server()
 
 
@@ -665,10 +671,6 @@ def start_server():
     global server
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=12))
     pb2_grpc.add_ChatServicer_to_server(ChatServicer(), server)
-
-    # TODO: remove this eventually
-    for file in glob.glob("*.pickle"):
-        os.remove(file)
 
     # Start server.
     server_address = f"{HOST}:{PORT + server_id}"

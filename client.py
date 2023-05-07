@@ -28,7 +28,6 @@ server_list = [f"{HOST}:{PORT}", f"{HOST}:{PORT + 1}", f"{HOST}:{PORT+ 2}"]
 # GUI for customer client
 class CustomerClient(tk.Frame):
     def __init__(self, username, password, stub):
-        print(123)
         self.username = username
         self.password = password
         self.stub = stub
@@ -39,7 +38,7 @@ class CustomerClient(tk.Frame):
 
         # Listen for messages
         self.listen_thread = threading.Thread(
-            target=(self.listen_for_messages), args=(stub, username))
+            target=(self.listen_for_messages), args=(username,))
         self.listen_thread.start()
 
         # Create root window: Customer Client inputs
@@ -288,17 +287,35 @@ class CustomerClient(tk.Frame):
         except (grpc._channel._InactiveRpcError, LeaderDisconnected):
             # Terminate the current listening thread and find a new leader.
             self.listen_thread.join()
-            leader_id = find_leader()
+            leader_id, self.stub = find_leader()
             channel = grpc.insecure_channel(server_list[leader_id])
             self.stub = pb2_grpc.ChatStub(channel)
 
             # Start the listening thread.
             self.listen_thread = threading.Thread(
-                target=(self.listen_for_messages), args=(self.stub, username))
+                target=(self.listen_for_messages), args=(username,))
             self.listen_thread.start()
 
             response = self.attempt_to_post_order(opcode, username,
                                                   password, dir, symbol, price, size)
+        except KeyboardInterrupt:
+            try:
+                response = self.stub.RequestClientOrder(
+                    pb2.ClientOrder(
+                        opcode="except",
+                        username=username,
+                        password="",
+                        symbol="",
+                        dir="",
+                        price=-1,
+                        size=-1,
+                    )
+                )
+                print_response(response.response)
+            except grpc._channel._InactiveRpcError:
+                pass
+            self.listen_thread.join()
+
         return response
 
     def post_order(self):
@@ -333,11 +350,13 @@ class CustomerClient(tk.Frame):
     def add_message(self, message):
         self.text_widget.insert(tk.END, message)
 
-    def listen_for_messages(self, stub, username):
+    def listen_for_messages(self, username):
         """
         Listen for messages from other clients.
         """
-        messages = stub.SendClientMessages(pb2.Username(username=username))
+
+        messages = self.stub.SendClientMessages(
+            pb2.Username(username=username))
 
         try:
             while True:
@@ -349,36 +368,12 @@ class CustomerClient(tk.Frame):
             return
 
 
-def leader_server():
-    """
-    Determines the leader server.
-    """
-    channel = None
-    stub = None
-    found = False
-    while not found:
-        for i, server_address in enumerate(server_list):
-            try:
-                # Create insecure channel to current server.
-                channel = grpc.insecure_channel(server_address)
-                stub = pb2_grpc.ChatStub(channel)
-
-                # Send request to server to ask who the leader is.
-                resp = stub.FindLeader(pb2.LeaderRequest())
-                return resp.leader
-
-            # If the server is not live, continue.
-            except grpc._channel._InactiveRpcError:
-                continue
-        time.sleep(1)
-
-
 def find_leader():
     """
     Determines which server is the leader.
     """
-    channel = None
     stub = None
+    channel = None
     connected_to_leader = False
     while not connected_to_leader:
         for i, addr in enumerate(server_list):
@@ -389,7 +384,7 @@ def find_leader():
                 # Query for the leader server. If found, return.
                 response = stub.FindLeader(pb2.LeaderRequest())
                 print("Leader:", response.leader)
-                return response.leader
+                return response.leader, stub
 
             # server was not live, try next server
             except grpc._channel._InactiveRpcError:
@@ -426,7 +421,7 @@ def main():
     global leader_id
 
     listen_thread = None
-    leader_id = find_leader()
+    leader_id, stub = find_leader()
     print(server_list[leader_id])
     channel = grpc.insecure_channel(server_list[leader_id])
     stub = pb2_grpc.ChatStub(channel)
@@ -472,96 +467,78 @@ def main():
     customer_client = CustomerClient(username, password, stub)
 
     # This code is not used anymore now that UI has been added
-    while True:
-        try:
-            while True:
-                request = input("\n>>> ")
-                order_params = request.split(" ")
-                if len(order_params) == 0:
-                    continue
+    # while True:
+    #     try:
+    #         while True:
+    #             request = input("\n>>> ")
+    #             order_params = request.split(" ")
+    #             if len(order_params) == 0:
+    #                 continue
 
-                # Initialize parameters of ClientOrder
-                opcode = order_params[0]
-                dir = ""
-                symbol = ""
-                price = -1
-                size = -1
+    #             # Initialize parameters of ClientOrder
+    #             opcode = order_params[0]
+    #             dir = ""
+    #             symbol = ""
+    #             price = -1
+    #             size = -1
 
-                # Parse client requests.
+    #             # Parse client requests.
 
-                # Create account.
-                if opcode == "create":
-                    username = order_params[1]
-                    password = order_params[2]
+    #             # Create account.
+    #             if opcode == "create":
+    #                 username = order_params[1]
+    #                 password = order_params[2]
 
-                # Log in.
-                elif opcode == "login":
-                    username = order_params[1]
-                    password = order_params[2]
+    #             # Log in.
+    #             elif opcode == "login":
+    #                 username = order_params[1]
+    #                 password = order_params[2]
 
-                # Send message to a user.
-                elif opcode == "buy" or opcode == "sell":
-                    opcode, symbol, price, size = order_params
-                    price = float(price)
-                    size = int(size)
-                    dir = opcode
+    #             # Send message to a user.
+    #             elif opcode == "buy" or opcode == "sell":
+    #                 opcode, symbol, price, size = order_params
+    #                 price = float(price)
+    #                 size = int(size)
+    #                 dir = opcode
 
-                # Delete account
-                # elif opcode == "delete":
-                #   recipient = order_params[1]
+    #             # Delete account
+    #             # elif opcode == "delete":
+    #             #   recipient = order_params[1]
 
-                else:
-                    if opcode != "":
-                        print("Error: Invalid command.", flush=True)
-                    continue
+    #             else:
+    #                 if opcode != "":
+    #                     print("Error: Invalid command.", flush=True)
+    #                 continue
 
-                response = stub.RequestClientOrder(
-                    pb2.ClientOrder(
-                        opcode=opcode,
-                        username=username,
-                        password=password,
-                        symbol=symbol,
-                        dir=dir,
-                        price=price,
-                        size=size,
-                    )
-                )
-                print_response(response.response)
+    #             response = stub.RequestClientOrder(
+    #                 pb2.ClientOrder(
+    #                     opcode=opcode,
+    #                     username=username,
+    #                     password=password,
+    #                     symbol=symbol,
+    #                     dir=dir,
+    #                     price=price,
+    #                     size=size,
+    #                 )
+    #             )
+    #             print_response(response.response)
 
-        # Exception for if the previous leader server went down and a new leader was determined.
-        except (grpc._channel._InactiveRpcError, LeaderDisconnected):
-            # Terminate the current listening thread and find a new leader.
-            listen_thread.join()
-            leader_id = find_leader()
-            channel = grpc.insecure_channel(server_list[leader_id])
-            stub = pb2_grpc.ChatStub(channel)
+    #     # Exception for if the previous leader server went down and a new leader was determined.
+    #     except (grpc._channel._InactiveRpcError, LeaderDisconnected):
+    #         # Terminate the current listening thread and find a new leader.
+    #         listen_thread.join()
+    #         leader_id = find_leader()
+    #         channel = grpc.insecure_channel(server_list[leader_id])
+    #         stub = pb2_grpc.ChatStub(channel)
 
-            # Start the listening thread.
-            listen_thread = threading.Thread(
-                target=(customer_client.listen_for_messages), args=(customer_client, stub, username))
-            listen_thread.start()
+    #         # Start the listening thread.
+    #         listen_thread = threading.Thread(
+    #             target=(customer_client.listen_for_messages), args=(customer_client, stub, username))
+    #         listen_thread.start()
 
-            print("Redirected to a new server; please repeat your request.")
-            pass
-        # Exception for if the user does a keyboard interrupt.
-        except KeyboardInterrupt:
-            try:
-                response = stub.RequestClientOrder(
-                    pb2.ClientOrder(
-                        opcode="except",
-                        username=username,
-                        password="",
-                        symbol="",
-                        dir="",
-                        price=-1,
-                        size=-1,
-                    )
-                )
-                print_response(response.response)
-            except grpc._channel._InactiveRpcError:
-                pass
-            listen_thread.join()
-            break
+    #         print("Redirected to a new server; please repeat your request.")
+    #         pass
+    # Exception for if the user does a keyboard interrupt.
 
 
 if __name__ == "__main__":
