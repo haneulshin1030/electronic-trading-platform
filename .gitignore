@@ -1,3 +1,4 @@
+chatapp_pb2*.py
 *.pickle
 *.pyc
 *.vscode
