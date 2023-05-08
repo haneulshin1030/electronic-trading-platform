@@ -79,7 +79,7 @@ class UnitTests(unittest.TestCase):
     These unit tests will test for a number of different trades scenarios and edge cases including price-time priority, regNMS order protection, and other financial metrics.
     """
     # Reset params
-    server.leader = 0
+    server.leader_id = 0
     server.order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
     server.open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
     
