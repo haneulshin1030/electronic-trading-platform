@@ -80,7 +80,7 @@ class UnitTests(unittest.TestCase):
     price-time priority, and other financial metrics.
     """
     # Reset params
-    server.leader = 0
+    server.leader_id = 0
     server.order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
     server.open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
 
