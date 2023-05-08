@@ -365,7 +365,7 @@ class CustomerClient(tk.Frame):
         sizes['sell'] = random.sample(
             range(max(0, size - 30), size + 30), 10)
 
-        start_time = time.time()
+        # start_time = time.time()
         for dir in dir_list:
             for fade, size in zip(fades[dir], sizes[dir]):
                 price = round(fair_value + fade, 2)
@@ -375,11 +375,11 @@ class CustomerClient(tk.Frame):
                 # print_response(response.response)
                 self.add_message(response.response + "\n")
                 time.sleep(0.5)
-            # time.sleep(5)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed time: {elapsed_time} seconds")
-        os._exit(0)
+            time.sleep(5)
+        # end_time = time.time()
+        # elapsed_time = end_time - start_time
+        # print(f"Elapsed time: {elapsed_time} seconds")
+        # os._exit(0)
 
     def init_orders(self):
         """

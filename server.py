@@ -19,8 +19,6 @@ import chatapp_pb2 as pb2
 import chatapp_pb2_grpc as pb2_grpc
 from concurrent import futures
 
-# lock = Lock()
-
 HOST = "127.0.0.1"
 PORT = 8000
 
@@ -53,9 +51,9 @@ order_book_status_id = 0
 symbol_list = ["AAPL", "TSLA", "USD"]
 
 # Default dictionary of positions in symbols
-
 zero_positions = dict.fromkeys(symbol_list, 0)
 
+# List of trade directions
 dir_list = ["buy", "sell"]
 
 # Dictionary mapping symbol -> {buy -> bid dictionary, sell -> offer dictionary}
@@ -93,14 +91,23 @@ messages = {}
 ERROR_NOT_LEADER = "Error: server is not the leader."
 
 # The time each server waits before checking if the leader is active
-default_sleep_time = 1
+DEFAULT_SLEEP_TIME = 1
+
+# Position limits
+DEFAULT_LONG_LIMIT = -10000000
+DEFAULT_SHORT_LIMIT = -10000000
 
 lock = threading.Lock()
 
-
-
 def save_data_locally(user_data_updated=False):
+    """
+    Save all server data tables locally to pickle files for persistence on a given machine in case of 
+    server crashes.
+    """
+    
     global open_orders, order_book, user_order_book, positions, messages, server_id
+    
+    # Open each file and write the table to it
     with open(f'open_orders_{server_id}.pickle', 'wb') as file:
         pickle.dump(open_orders, file)
     with open(f'order_book_{server_id}.pickle', 'wb') as file:
@@ -113,6 +120,7 @@ def save_data_locally(user_data_updated=False):
     with open(f'messages_{server_id}.pickle', 'wb') as file:
         pickle.dump(messages, file)
 
+    # If client user status or password informaiton was updated, write that information as well
     if user_data_updated:
         global user_status, passwords
         with open(f'user_status_{server_id}.pickle', 'wb') as file:
@@ -124,14 +132,21 @@ def save_data_locally(user_data_updated=False):
 
 
 def post_order(username, dir, symbol, sgn, price, size):
+    '''
+    Post an order to the order book for the username corresponding to the specified paramters.
+    '''
     global open_orders, order_book, messages
     if size == 0:
         return
 
     price = round(price, 2)
+    
+    # Add the new order to the existing key if the price is already in the order book
     if price in open_orders[symbol][dir]:
         open_orders[symbol][dir][price].append([username, size])
         order_book[symbol][dir][price] += size
+        
+    # Create a new entry for the price and add it to the open orders and order book
     else:
         open_orders[symbol][dir][price] = [[username, size]]
         order_book[symbol][dir][price] = size
@@ -139,16 +154,29 @@ def post_order(username, dir, symbol, sgn, price, size):
 
 
 def update_positions(username, symbol, sgn, opp_sgn, price, size):
+    """
+    Following a trade, update the positions of the user, which indicates how many shares they have in each security
+    and how much cash they have in USD.
+    """
     global positions
 
+    # Update user positions
     print(f"Updating {username}'s position in {symbol} by {sgn} * {size}...")
     positions[username][symbol] += sgn * size
     positions[username]["USD"] += opp_sgn * size * price
+    
+    # Inform user if position limits are reached
+    if positions[username][symbol] > DEFAULT_LONG_LIMIT or positions[username][symbol] < DEFAULT_SHORT_LIMIT:
+        messages[username].append(f"Warning: reached position limit in {symbol}.")
+    
     print("Positions updated.")
     return
 
 
 def trade_message(username, dir, symbol, price, size):
+    """
+    Return a trade message to be added to the client's message log.
+    """
     action_past = "Bought" if dir == "buy" else "Sold"
     preposition = "for" if dir == "buy" else "at"
     return f"{action_past} {size} shares of {symbol} {preposition} ${price:.2f}/share."
@@ -157,13 +185,20 @@ def trade_message(username, dir, symbol, price, size):
 def match_trade(
     username, dir, symbol, sgn, opp_sgn, price, size, order_was_taken=False
 ):
+    """
+    Executes a particular trade that occured the user and one counterparty, at the price 
+    originally offered by the counterparty to satisfy RegNMS Order Protection. 
+    This function is run for both the user and each counterparty for a given trade order.
+    
+    Returns the correspond trade message.
+    """
     global positions, messages, open_orders, order_book
 
     if order_was_taken:
         print(f"Order book before match: \n {order_book[symbol]}\n")
         print(f"User positions before match: \n {positions[username]}")
 
-    # Update user information
+    # Update user positions
     update_positions(username, symbol, sgn, opp_sgn, price, size)
 
     # If the user is the counterparty who posted the trade (maker)
@@ -387,6 +422,18 @@ def find_best_price(opp, symbol, price):
 def handle_server_response(opcode, username, password, dir, symbol, price, size):
     """
     Handle the server's response to the input.
+    
+    Allows users to create a new account, log in, initialize their order book, or send a trade request in
+    the form of a buy or sell order.
+    
+    In the case of a trade request in the form of a buy or sell order, a trade matching algorithm is run to 
+    1) find all matched trades if they exist, picking counterparties to satisfy price-time priority,
+    2) execute all trades that occurred with each counterparty, at the price they originally offered, satisfying the RegNMS Order Protection Rule
+    3) execute the trade with the current user, at the average price across all trades with counterparties,
+    4) post an order with the remaining unmatched trades for the user.
+    
+    Update the open orders and order books to reflect all trades and posted orders.
+    Also update the user's positions and messages accordingly. 
     """
     # If this server is not the leader, error.
     global leader_id, server_id
@@ -419,12 +466,12 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         send_order_book_to_clients(symbol)
         response = "Order book initialized."
     # Post a user's order in the market and execute any matched trades
-    # Think about race conditions? Lock and unlock?
+
     elif opcode == "buy" or opcode == "sell":
 
         preposition = None
 
-        # Opposite direction
+        # Determine the counterparty's (opposite) direction and their corresponding parameters
         if dir == "buy":
             opp = "sell"
             sgn = 1
@@ -441,7 +488,6 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         )
 
         # Check if there are matching trades, and excute them if so
-
         trade_size = 0
         cumulative_price = 0
 
@@ -449,26 +495,33 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
         while size - trade_size > 0:
             print("Matching trades...")
-            # print(f"Order book: \n {order_book[symbol]}")
 
             # Check if there are no orders in the opposite direction
             if len(order_book[symbol][opp]) == 0:
                 print("No orders in the opposite direction.")
                 break
 
+            # Ensure that the current user receives the best possible counterparty trade price
+            # to enforce RegNMS Order Protection
             best_price = find_best_price(opp, symbol, price)
             if best_price is None:
                 break
-            # print(order_book)
-            # print(open_orders)
+
             print(f"Current best price: {best_price}")
 
+            # While the user has unmatched shares and there exist orders in the order book
+            # that can be matched with
             while size - trade_size > 0 and best_price in open_orders[symbol][opp]:
+                
+                # The size of the trade with the counterparty is the minimum of the 
+                # remaining size left unmatched in the current user's order and the 
+                # available size offered by the first counterparty, sorted by 
+                # price-time priority.
                 cur_size = min(
                     open_orders[symbol][opp][best_price][0][1], size - trade_size
                 )
 
-                # Trade occurred
+                # If a trade occurred, execute the trade for the counterparty
                 if cur_size > 0:
                     trade_size += cur_size
                     cumulative_price += cur_size * best_price
@@ -477,7 +530,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
                         f"Matching {cur_size} shares at price {best_price} with {counterparty}..."
                     )
 
-                    # Update counterparty information
+                    # Execute the trade and update counterparty information
                     match_trade(
                         counterparty,
                         opp,
@@ -492,7 +545,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
 
         print(f"Matched a total of {trade_size} shares.\n")
 
-        # Update user information
+        #  Execute all trades made between the user and each counterparty in one batch,
+        #  using the average price of their trades with each of the counterparties, and update user information
         if trade_size > 0:
             average_price = round(cumulative_price / trade_size, 2)
             print(
@@ -507,6 +561,7 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         else:
             response = ""
 
+        # If unmatched shares remain in the user's order, post the remaining ones to the order book
         if trade_size < size:
             print(
                 f"Posting order for the remaining {size - trade_size} shares...")
@@ -534,10 +589,15 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         else:
             response = ""
 
+    # Save all server and user data locally
     print("Saving data locally...")
     save_data_locally(user_data_updated)
+    
+    # Send all server and user data to the other live servers
     print("Sending server data to other servers...")
     send_server_data_to_servers(user_data_updated)
+    
+    # Send the updated order book to all clients, for real-time access and rendering
     if symbol:
         send_order_book_to_clients(symbol)
 
@@ -545,11 +605,8 @@ def handle_server_response(opcode, username, password, dir, symbol, price, size)
         # Save dictionary data
         print("ORDER BOOK")
         print(order_book)
-        # with open('order_book_dump.pickle', 'wb') as file:
-        #     pickle.dump(order_book, file)
-        # with open('positions.pickle', 'wb') as file:
-        #     pickle.dump(positions, file)
 
+        # Send a response message to the user who made the request
         print(f'Sending response to server: "{response}" \n')
         return pb2.Response(response=response)
 
@@ -565,7 +622,7 @@ def send_heartbeat(stub, id):
         global leader_id
         leader_id = response.leader
     except:
-        # print(f"Server currently down: {id}.") UNCOMMENT THIS?
+        # print(f"Server currently down: {id}.") 
         active_servers[id] = False
 
 
@@ -585,6 +642,11 @@ def kill_server():
 
 
 def reformat_data():
+    '''
+    Reformat the data read in through json.loads() functions from other servers so that all
+    prices are floats and all sizes are ints.  Update the open_orders, order_book, and positions accordingly.
+    '''
+    
     global open_orders, order_book, positions
 
     for symbol in symbol_list:
@@ -597,11 +659,6 @@ def reformat_data():
             order_book[symbol][dir] = SortedDict({float(price): int(float(
                 size)) for price, size in order_book[symbol][dir].items()})
 
-    # for symbol in symbol_list:
-    #     for dir in dir_list:
-    #         user_order_book[symbol][dir] = [(float(price), int(
-    #             float(size))) for price, size in user_order_book[symbol][dir]]
-
     for username in user_status.keys():
         positions[username] = {symbol: int(float(position))
                                for symbol, position in positions[username].items()}
@@ -610,6 +667,10 @@ def reformat_data():
 
 
 def send_new_leader_to_clients():
+    """
+    If a new leader is set, send an update message to each client so that they can update
+    the leader on their end.
+    """
     global leader_id, messages
     for username in user_status.keys():
         messages[username].append(f"Connecting to server {leader_id}...")
@@ -617,19 +678,25 @@ def send_new_leader_to_clients():
 
 
 def send_order_book_to_clients(symbol):
+    """
+    Retrieve the 10 most competitive buy orders and sell orders on the order book and send 
+    each of them to every client, so that they can render the update-to-date order book in real-time.
+    """
     global user_order_book, order_book, messages, order_book_status_id
 
     print("Sending order book to clients...")
-    n = len(order_book[symbol]['buy'])
 
+    # Retrieve the 10 most competitive buy orders
+    n = len(order_book[symbol]['buy'])
     user_order_book[symbol]['buy'] = [order_book[symbol]
                                       ['buy'].peekitem(i) for i in range(n - 1, -1, -1)[-10:]]
 
+    # Retrieve the 10 most competitive sell orders
     m = len(order_book[symbol]['sell'])
-
     user_order_book[symbol]['sell'] = [order_book[symbol]
                                        ['sell'].peekitem(i) for i in range(m)[:10]]
 
+    # Send each user a message updating them on the new updated lists of buy and sell orders
     for username in user_status.keys():
         messages[username].append(
             f"Update: {user_order_book[symbol]['buy']};{user_order_book[symbol]['sell']}")
@@ -644,6 +711,7 @@ def check_leader():
     Check if leader is currently active. If not, set a new leader.
     """
     global leader_id, messages
+
     if leader_id is None or not active_servers[leader_id]:
         for id, alive in enumerate(active_servers):
             if alive:
@@ -667,12 +735,14 @@ def start_heartbeat(id):
     """
     Start heartbeat of server.
     """
+    
+    # Send heartbeat from the current server
     channel = grpc.insecure_channel(address_list[id])
     stub = pb2_grpc.ChatStub(channel)
     send_heartbeat(stub, id)
     while None in active_servers:
         continue
-    sleep_time = default_sleep_time
+    sleep_time = DEFAULT_SLEEP_TIME
     while event.is_set():
         time.sleep(sleep_time)
         send_heartbeat(stub, id)
@@ -691,10 +761,11 @@ def start_server():
             heartbeat_thread.start()
             threads.append(heartbeat_thread)
 
-    # Persistence: load all data previously saved locally to server
-    # If this is the only remaining server, then it will have all the updates
+    # Ensures persistence by loading all data previously saved locally to server.
+    # If this is the only remaining server, it will maintain all updates that occurred. 
     # Otherwise, if another server was already alive and sending updates, then it will
     # send this server the updated data now that it is online.
+    
     if Path(f'user_status_{server_id}.pickle').is_file():
         global open_orders, order_book, user_order_book, user_status, passwords, positions, messages
         with open(f'user_status_{server_id}.pickle', 'rb') as file:
@@ -709,8 +780,6 @@ def start_server():
             order_book = pickle.load(file)
             order_book = {symbol: {"buy": SortedDict(order_book[symbol]['buy']), "sell": SortedDict(order_book[symbol]['sell'])}
                           for symbol in symbol_list}
-        # with open(f'user_order_book_{server_id}.pickle', 'rb') as file:
-        #     user_order_book = pickle.load(file)
 
         with open(f'positions_{server_id}.pickle', 'rb') as file:
             positions = pickle.load(file)

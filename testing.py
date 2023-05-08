@@ -76,14 +76,13 @@ class UnitTests(unittest.TestCase):
 
   def test_match_trade(self):
     """
-    These unit tests will test for a lot of scenarios, edge cases, 
-    price-time priority, and other financial metrics.
+    These unit tests will test for a number of different trades scenarios and edge cases including price-time priority, regNMS order protection, and other financial metrics.
     """
     # Reset params
     server.leader = 0
     server.order_book = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
     server.open_orders = {symbol: {"buy": SortedDict(), "sell": SortedDict()} for symbol in server.symbol_list}
-
+    
     # User A: BUY, AAPL, $170, 100 shares -> no trade
     handle_server_response('buy', 'user1', user1_pw, 'buy', 'AAPL', 170, 100)
     self.assertEqual(server.order_book['AAPL']['buy'], SortedDict({170: 100}))
